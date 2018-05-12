@@ -315,9 +315,8 @@ cirlce_test( cv::Mat& img )
 int
 main( )
 {
-    Mat img1 = imread( "/home/gao/ws/devel/lib/camera_model/image_down/IMG_35.png" );
-    Mat img2 = imread( "/home/gao/ws/src/sfeature/fsf/images/image_F.png" );
-    //    cirlce_test( img1 );
+    Mat img1 = imread( "/home/gao/ws/devel/lib/camera_model/image_down/IMG_35.png", 0 );
+    Mat img2 = imread( "/home/gao/ws/src/sfeature/fsf/images/image_F.png", 0 );
 
     //    cv::resize( img1, img2, cv::Size( 640, 512 ) );
 

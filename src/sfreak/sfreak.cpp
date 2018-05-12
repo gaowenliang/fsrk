@@ -735,8 +735,8 @@ SFREAK_Impl::computeDescriptors( InputArray _image, std::vector< KeyPoint >& key
         }
     }
 
-    // cv::namedWindow( "image_color", WINDOW_NORMAL );
-    // cv::imshow( "image_color", image_color );
+    cv::namedWindow( "image_color", WINDOW_NORMAL );
+    cv::imshow( "image_color", image_color );
     // cv::imwrite( "/home/gao/1.bmp", image_color );
     // cv::waitKey( 0 );
 }

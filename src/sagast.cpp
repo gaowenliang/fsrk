@@ -1,3 +1,10 @@
+#define BACKWARD_HAS_DW 1
+#include "backward.hpp"
+namespace backward
+{
+backward::SignalHandling sh;
+}
+
 #include "../include/fsf/sagast/sagast.h"
 #include <cv.h>
 #include <iostream>
@@ -209,118 +216,119 @@ main( )
     ////////////////////////////////////////////////////////////////////////////////////////
     ////////////////////////////////////////////////////////////////////////////////////////
     // 12s ///////////////////////////////////////////////////////////////////////////////
-
-    keyPoints_1.clear( );
-    keyPoints_2.clear( );
-
-    Mat frame_agast12s, frame_agast12s_c;
-    frame.copyTo( frame_agast12s ); // TODO
-    frame_color.copyTo( frame_agast12s_c );
-
-    cv::Ptr< cv::AgastDetector > agast12s
-    = cv::AgastDetector::create( 40, true, cv::AgastDetector::SAGAST_12s );
-
-    agast12s->loadMask( file_mask );
-    agast12s->loadCamera( file_cam );
-
-    sum_t = 0;
-    for ( int i = 0; i < 1; ++i )
     {
-        t = getTickCount( );
-        if ( 0 )
+        keyPoints_1.clear( );
+        keyPoints_2.clear( );
+
+        Mat frame_agast12s, frame_agast12s_c;
+        frame.copyTo( frame_agast12s ); // TODO
+        frame_color.copyTo( frame_agast12s_c );
+
+        cv::Ptr< cv::AgastDetector > agast12s
+        = cv::AgastDetector::create( 40, true, cv::AgastDetector::SAGAST_12s );
+
+        agast12s->loadMask( file_mask );
+        agast12s->loadCamera( file_cam );
+
+        sum_t = 0;
+        for ( int i = 0; i < 1; ++i )
         {
-            agast12s->buildOffsetsTable( );
-            agast12s->saveOffsetsTable( "/home/gao/ws/src/vins/config/dual/table" );
+            t = getTickCount( );
+            if ( 0 )
+            {
+                agast12s->buildOffsetsTable( );
+                agast12s->saveOffsetsTable( "/home/gao/ws/src/vins/config/dual/table" );
+            }
+            else
+            {
+                agast12s->loadOffsetsTable( "/home/gao/ws/src/vins/config/dual/table" );
+            }
+            t = ( ( double )getTickCount( ) - t ) / getTickFrequency( );
+            sum_t += resize_num * t * 1000;
         }
-        else
+        std::cout << "avg cost " << sum_t / 1000 << " ms" << std::endl;
+        std::cout << "agast12s table cost " << resize_num * t * 1000 << " ms" << std::endl;
+
+        sum_t = 0;
+        for ( int i = 0; i < 1; ++i )
         {
-            agast12s->loadOffsetsTable( "/home/gao/ws/src/vins/config/dual/table" );
+            t = getTickCount( );
+            agast12s->detect( frame_agast12s, keyPoints_1 );
+            t = ( ( double )getTickCount( ) - t ) / getTickFrequency( );
+            sum_t += resize_num * t * 1000;
         }
-        t = ( ( double )getTickCount( ) - t ) / getTickFrequency( );
-        sum_t += resize_num * t * 1000;
-    }
-    std::cout << "avg cost " << sum_t / 1000 << " ms" << std::endl;
-    std::cout << "agast12s table cost " << resize_num * t * 1000 << " ms" << std::endl;
+        insertionSort( keyPoints_1 );
+        for ( int pt_index = 0; pt_index < 100; ++pt_index )
+        {
+            keyPoints_2.push_back( keyPoints_1[pt_index] );
+        }
+        drawKeypoints( frame_agast12s_c, keyPoints_1, frame_agast12s_c, Scalar( 0, 0, 255 ), DrawMatchesFlags::DRAW_OVER_OUTIMG );
+        std::cout << "avg cost " << sum_t / 1000 << " ms" << std::endl;
+        std::cout << "agast12s cost " << resize_num * t * 1000 << " ms" << std::endl;
+        std::cout << "size " << keyPoints_1.size( ) << std::endl;
 
-    sum_t = 0;
-    for ( int i = 0; i < 1; ++i )
-    {
-        t = getTickCount( );
-        agast12s->detect( frame_agast12s, keyPoints_1 );
-        t = ( ( double )getTickCount( ) - t ) / getTickFrequency( );
-        sum_t += resize_num * t * 1000;
+        cv::namedWindow( "agast12s", cv::WINDOW_NORMAL );
+        imshow( "agast12s", frame_agast12s_c );
     }
-    insertionSort( keyPoints_1 );
-    for ( int pt_index = 0; pt_index < 100; ++pt_index )
-    {
-        keyPoints_2.push_back( keyPoints_1[pt_index] );
-    }
-    drawKeypoints( frame_agast12s_c, keyPoints_1, frame_agast12s_c, Scalar( 0, 0, 255 ), DrawMatchesFlags::DRAW_OVER_OUTIMG );
-    std::cout << "avg cost " << sum_t / 1000 << " ms" << std::endl;
-    std::cout << "agast12s cost " << resize_num * t * 1000 << " ms" << std::endl;
-    std::cout << "size " << keyPoints_1.size( ) << std::endl;
-
-    cv::namedWindow( "agast12s", cv::WINDOW_NORMAL );
-    imshow( "agast12s", frame_agast12s_c );
-
     ////////////////////////////////////////////////////////////////////////////////////////
     ////////////////////////////////////////////////////////////////////////////////////////
     ////////////////////////////////////////////////////////////////////////////////////////
     // 16 ///////////////////////////////////////////////////////////////////////////////
-
-    keyPoints_1.clear( );
-    keyPoints_2.clear( );
-
-    Mat frame_agast16, frame_agast16_c;
-    frame.copyTo( frame_agast16 ); // TODO
-    frame_color.copyTo( frame_agast16_c );
-
-    cv::Ptr< cv::AgastDetector > agast16
-    = cv::AgastDetector::create( 40, true, cv::AgastDetector::SAGAST_16 );
-
-    agast16->loadMask( file_mask );
-    agast16->loadCamera( file_cam );
-
-    sum_t = 0;
-    for ( int i = 0; i < 1; ++i )
+    if ( false )
     {
-        t = getTickCount( );
-        if ( 0 )
+        keyPoints_1.clear( );
+        keyPoints_2.clear( );
+
+        Mat frame_agast16, frame_agast16_c;
+        frame.copyTo( frame_agast16 ); // TODO
+        frame_color.copyTo( frame_agast16_c );
+
+        cv::Ptr< cv::AgastDetector > agast16
+        = cv::AgastDetector::create( 40, true, cv::AgastDetector::SAGAST_16 );
+
+        agast16->loadMask( file_mask );
+        agast16->loadCamera( file_cam );
+
+        sum_t = 0;
+        for ( int i = 0; i < 1; ++i )
         {
-            agast16->buildOffsetsTable( );
-            agast16->saveOffsetsTable( "/home/gao/ws/src/vins/config/dual/table" );
+            t = getTickCount( );
+            if ( 0 )
+            {
+                agast16->buildOffsetsTable( );
+                agast16->saveOffsetsTable( "/home/gao/ws/src/vins/config/dual/table" );
+            }
+            else
+            {
+                agast16->loadOffsetsTable( "/home/gao/ws/src/vins/config/dual/table" );
+            }
+            t = ( ( double )getTickCount( ) - t ) / getTickFrequency( );
+            sum_t += resize_num * t * 1000;
         }
-        else
+        std::cout << "avg cost " << sum_t / 1000 << " ms" << std::endl;
+        std::cout << "agast16 table cost " << resize_num * t * 1000 << " ms" << std::endl;
+
+        sum_t = 0;
+        for ( int i = 0; i < 1; ++i )
         {
-            agast16->loadOffsetsTable( "/home/gao/ws/src/vins/config/dual/table" );
+            t = getTickCount( );
+            agast16->detect( frame_agast16, keyPoints_1 );
+            t = ( ( double )getTickCount( ) - t ) / getTickFrequency( );
+            sum_t += resize_num * t * 1000;
         }
-        t = ( ( double )getTickCount( ) - t ) / getTickFrequency( );
-        sum_t += resize_num * t * 1000;
-    }
-    std::cout << "avg cost " << sum_t / 1000 << " ms" << std::endl;
-    std::cout << "agast16 table cost " << resize_num * t * 1000 << " ms" << std::endl;
+        insertionSort( keyPoints_1 );
+        for ( int pt_index = 0; pt_index < 100; ++pt_index )
+        {
+            keyPoints_2.push_back( keyPoints_1[pt_index] );
+        }
+        drawKeypoints( frame_agast16_c, keyPoints_1, frame_agast16_c, Scalar( 0, 0, 255 ), DrawMatchesFlags::DRAW_OVER_OUTIMG );
+        std::cout << "avg cost " << sum_t / 1000 << " ms" << std::endl;
+        std::cout << "agast16 cost " << resize_num * t * 1000 << " ms" << std::endl;
+        std::cout << "size " << keyPoints_1.size( ) << std::endl;
 
-    sum_t = 0;
-    for ( int i = 0; i < 1; ++i )
-    {
-        t = getTickCount( );
-        agast16->detect( frame_agast16, keyPoints_1 );
-        t = ( ( double )getTickCount( ) - t ) / getTickFrequency( );
-        sum_t += resize_num * t * 1000;
+        cv::namedWindow( "agast16", cv::WINDOW_NORMAL );
+        imshow( "agast16", frame_agast16_c );
     }
-    insertionSort( keyPoints_1 );
-    for ( int pt_index = 0; pt_index < 100; ++pt_index )
-    {
-        keyPoints_2.push_back( keyPoints_1[pt_index] );
-    }
-    drawKeypoints( frame_agast16_c, keyPoints_1, frame_agast16_c, Scalar( 0, 0, 255 ), DrawMatchesFlags::DRAW_OVER_OUTIMG );
-    std::cout << "avg cost " << sum_t / 1000 << " ms" << std::endl;
-    std::cout << "agast16 cost " << resize_num * t * 1000 << " ms" << std::endl;
-    std::cout << "size " << keyPoints_1.size( ) << std::endl;
-
-    cv::namedWindow( "agast16", cv::WINDOW_NORMAL );
-    imshow( "agast16", frame_agast16_c );
-
     //    keyPoints_1.clear( );
 
     // Mat frame_orb;
