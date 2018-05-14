@@ -2,11 +2,11 @@
 #define AGAST_F_H
 
 #include <camera_model/camera_models/CameraFactory.h>
+#include <code_utils/cv_utils/cv_type.hpp>
 #include <iostream>
 #include <opencv2/core.hpp>
 #include <opencv2/features2d.hpp>
 #include <opencv2/imgcodecs.hpp>
-
 #include <opencv2/opencv.hpp>
 
 namespace cv
@@ -45,28 +45,6 @@ The perl script and examples of tree generation are placed in features2d/doc fol
 Detects corners using the AGAST algorithm by @cite mair2010_agast .
 
 */
-
-#define CV_8SC12 CV_MAKETYPE( CV_8S, 12 )
-#define CV_8SC16 CV_MAKETYPE( CV_8S, 16 )
-#define CV_8SC24 CV_MAKETYPE( CV_8S, 24 )
-#define CV_8SC32 CV_MAKETYPE( CV_8S, 32 )
-
-#define CV_16SC12 CV_MAKETYPE( CV_8S, 12 )
-
-#define CV_32SC12 CV_MAKETYPE( CV_32S, 12 )
-#define CV_32SC24 CV_MAKETYPE( CV_32S, 24 )
-
-typedef Vec< short, 12 > Vec12s;
-typedef Vec< short, 16 > Vec16s;
-typedef Vec< short, 24 > Vec24s;
-typedef Vec< char, 3 > Vec3c;
-typedef Vec< char, 4 > Vec4c;
-typedef Vec< char, 12 > Vec12c;
-typedef Vec< char, 16 > Vec16c;
-typedef Vec< char, 24 > Vec24c;
-typedef Vec< char, 32 > Vec32c;
-typedef Vec< int, 12 > Vec12i;
-typedef Vec< int, 24 > Vec24i;
 
 class AgastDetector : public Feature2D
 {
