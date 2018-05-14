@@ -542,8 +542,6 @@ SFREAK_Impl::computeDescriptors( InputArray _image, std::vector< KeyPoint >& key
                 kpScaleIdx[k] = FREAK_NB_SCALES - 1;
 
             // TODO
-            //            std::cout << " " << keypoints[k].pt.y << " " << keypoints[k].pt.x
-            //            << "\n";
             // circle( image_color, Point( keypoints[k].pt.x, keypoints[k].pt.y ), 2,
             // Scalar( 0, 0, 255 ), 2 );
             image_color.at< cv::Vec3b >( keypoints[k].pt.y, keypoints[k].pt.x )

@@ -248,15 +248,6 @@ matchFREAK( Mat& img1, Mat& img2, vector< KeyPoint >& kp1, vector< KeyPoint >& k
         }
     }
 
-    // for ( size_t i = 0; i < kp1.size( ); i++ )
-    // {
-    //     circle( img1, Point( kp1[i].pt.x, kp1[i].pt.y ), 2, Scalar( 0, 0, 255 ), 2 );
-    // }
-    // for ( size_t i = 0; i < kp2.size( ); i++ )
-    // {
-    //     circle( img2, Point( kp2[i].pt.x, kp2[i].pt.y ), 2, Scalar( 0, 0, 255 ), 2 );
-    // }
-
     cout << "good_matches " << good_matches.size( ) << endl;
 
     Mat img_matches;
@@ -291,25 +282,6 @@ matchFREAK( Mat& img1, Mat& img2, vector< KeyPoint >& kp1, vector< KeyPoint >& k
 
     showImg( "dst", img_matches );
     cv::waitKey( 0 );
-}
-
-void
-cirlce_test( cv::Mat& img )
-{
-    cv::CircleInt cirle( Point( 100, 100 ), int( 10 ) );
-    cv::CircleInt cirle_( Point( 100, 100 ), int( 10 ) );
-    std::vector< cv::Point2f > points_circle = cirle_.getCirclePoints( img.size( ) );
-    std::cout << " points_circle " << points_circle.size( ) << "\n";
-    for ( auto& pt : points_circle )
-    {
-        img.at< cv::Vec3b >( pt ) = cv::Vec3b( 255, 255, 0 );
-    }
-
-    cv::CircleInt cirle2( Point( 100, 100 ), int( 20 ) );
-    cv::CircleInt cirle3( Point( 100, 100 ), int( 90 ) );
-    cirle.draw( img, cv::Scalar( 0, 0, 255 ) );
-    cirle2.draw( img, cv::Scalar( 0, 0, 255 ) );
-    cirle3.draw( img, cv::Scalar( 0, 0, 255 ) );
 }
 
 int
