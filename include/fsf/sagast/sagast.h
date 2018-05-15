@@ -69,6 +69,8 @@ class AgastDetector : public Feature2D
     void buildOffsetsTable( );
     bool saveOffsetsTable( std::string path );
     bool loadOffsetsTable( std::string path );
+    bool saveOffsetsCfg( std::string file );
+    bool loadOffsetsCfg( std::string file );
 
     void SAGAST2( InputArray image, std::vector< KeyPoint >& keypoints, int threshold, bool nonmaxSuppression, int type );
 

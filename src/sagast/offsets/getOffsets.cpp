@@ -1,6 +1,7 @@
 
 #include "fsf/sagast/sagast.h"
 #include "fsf/sagast/score/sagast_score.hpp"
+#include <code_utils/sys_utils/cvmat_file_io.hpp>
 #include <opencv2/opencv.hpp>
 
 using namespace cv;
@@ -171,6 +172,20 @@ AgastDetector::getOffsets( short pixel[16], short rowStride, int type, int xx, i
             break;
         }
     }
+}
+
+bool
+AgastDetector::saveOffsetsCfg( std::string file )
+{
+    sys_utils::io::writeMatrixToBinary( file, m_tableOffsets );
+    return true;
+}
+
+bool
+AgastDetector::loadOffsetsCfg( std::string file )
+{
+    sys_utils::io::parseMatrixFromBinary( file, m_tableOffsets );
+    return true;
 }
 
 bool

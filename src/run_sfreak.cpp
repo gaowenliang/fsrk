@@ -42,11 +42,13 @@ detectFREAK( Mat& img1, Mat& img2, vector< KeyPoint >& kp1, vector< KeyPoint >& 
     if ( 0 )
     {
         agast12->buildOffsetsTable( );
-        agast12->saveOffsetsTable( "/home/gao/ws/src/vins/config/dual/table" );
+        agast12->saveOffsetsCfg( "/home/gao/data_SAGAST12d_down" );
+        //        agast12->saveOffsetsTable( "/home/gao/ws/src/vins/config/dual/table" );
     }
     else
     {
-        agast12->loadOffsetsTable( "/home/gao/ws/src/vins/config/dual/table" );
+        agast12->loadOffsetsCfg( "/home/gao/data_SAGAST12d_down" );
+        //        agast12->loadOffsetsTable( "/home/gao/ws/src/vins/config/dual/table" );
     }
     agast12->detect( img1, kp1 );
     std::cout << "size1: " << kp1.size( ) << std::endl;
@@ -76,14 +78,16 @@ detectFREAK( Mat& img1, Mat& img2, vector< KeyPoint >& kp1, vector< KeyPoint >& 
     = cv::AgastDetector::create( 20, true, cv::AgastDetector::SAGAST_12d );
     agast122->loadCamera( file_cam2 );
     agast122->loadMask( );
-    if ( 0 )
+    if ( 1 )
     {
         agast122->buildOffsetsTable( );
-        agast122->saveOffsetsTable( "/home/gao/ws/src/vins/config/dual/table2" );
+        agast122->saveOffsetsCfg( "/home/gao/data_SAGAST12d_f" );
+        //        agast122->saveOffsetsTable( "/home/gao/ws/src/vins/config/dual/table2" );
     }
     else
     {
-        agast122->loadOffsetsTable( "/home/gao/ws/src/vins/config/dual/table2" );
+        agast122->loadOffsetsCfg( "/home/gao/data_SAGAST12d_f" );
+        //        agast122->loadOffsetsTable( "/home/gao/ws/src/vins/config/dual/table2" );
     }
 
     //    cv::Mat image2;
