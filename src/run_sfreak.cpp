@@ -33,7 +33,7 @@ detectFREAK( Mat& img1, Mat& img2, vector< KeyPoint >& kp1, vector< KeyPoint >& 
 
     // detector
     std::string file_cam  = "/home/gao/ws/src/vins/config/dual/cam_down_camera_calib.yaml";
-    std::string file_cam2 = "/home/gao/ws/src/sfeature/fsf/images/cam_config_F.yaml";
+    std::string file_cam2 = "/home/gao/ws/src/fsf/images/cam_config_F.yaml";
     std::string file_mask = "/home/gao/ws/src/vins/config/dual/mask_down.jpg";
     cv::Ptr< cv::AgastDetector > agast12
     = cv::AgastDetector::create( 40, true, cv::AgastDetector::SAGAST_12d );
@@ -292,7 +292,7 @@ int
 main( )
 {
     Mat img1 = imread( "/home/gao/ws/devel/lib/camera_model/image_down/IMG_35.png", 0 );
-    Mat img2 = imread( "/home/gao/ws/src/sfeature/fsf/images/image_F.png", 0 );
+    Mat img2 = imread( "/home/gao/ws/src/fsf/images/image_F.png", 0 );
 
     //    cv::resize( img1, img2, cv::Size( 640, 512 ) );
 

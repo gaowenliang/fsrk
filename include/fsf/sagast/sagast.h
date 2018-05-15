@@ -49,15 +49,14 @@ Detects corners using the AGAST algorithm by @cite mair2010_agast .
 class AgastDetector : public Feature2D
 {
     public:
-    enum
-    {
+    typedef enum {
         SAGAST_8           = 0,
         SAGAST_12d         = 1,
         SAGAST_12s         = 2,
         SAGAST_16          = 3,
         THRESHOLD          = 10000,
         NONMAX_SUPPRESSION = 10001,
-    };
+    } SAGAST_TYPE;
 
     static Ptr< AgastDetector >
     create( int threshold = 10, bool nonmaxSuppression = true, int type = AgastDetector::SAGAST_16 );

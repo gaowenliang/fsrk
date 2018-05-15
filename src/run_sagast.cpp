@@ -119,14 +119,14 @@ main( )
     for ( int i = 0; i < 1; ++i )
     {
         t = getTickCount( );
-        if ( 0 )
+        if ( 1 )
         {
             agast12->buildOffsetsTable( );
-            agast12->saveOffsetsTable( "/home/gao/ws/src/vins/config/dual/table" );
+            agast12->saveOffsetsCfg( "/home/gao/ws/src/fsf/cfg/dataSAGAST12d" );
         }
         else
         {
-            agast12->loadOffsetsTable( "/home/gao/ws/src/vins/config/dual/table" );
+            agast12->loadOffsetsCfg( "/home/gao/ws/src/fsf/cfg/dataSAGAST12d" );
         }
         t = ( ( double )getTickCount( ) - t ) / getTickFrequency( );
         sum_t += resize_num * t * 1000;
@@ -176,14 +176,14 @@ main( )
     for ( int i = 0; i < 1; ++i )
     {
         t = getTickCount( );
-        if ( 0 )
+        if ( 1 )
         {
             agast8->buildOffsetsTable( );
-            agast8->saveOffsetsTable( "/home/gao/ws/src/vins/config/dual/table" );
+            agast8->saveOffsetsCfg( "/home/gao/ws/src/fsf/cfg/dataSAGAST8" );
         }
         else
         {
-            agast8->loadOffsetsTable( "/home/gao/ws/src/vins/config/dual/table" );
+            agast8->loadOffsetsCfg( "/home/gao/ws/src/fsf/cfg/dataSAGAST8" );
         }
         t = ( ( double )getTickCount( ) - t ) / getTickFrequency( );
         sum_t += resize_num * t * 1000;
@@ -234,14 +234,14 @@ main( )
         for ( int i = 0; i < 1; ++i )
         {
             t = getTickCount( );
-            if ( 0 )
+            if ( 1 )
             {
                 agast12s->buildOffsetsTable( );
-                agast12s->saveOffsetsTable( "/home/gao/ws/src/vins/config/dual/table" );
+                agast12s->saveOffsetsCfg( "/home/gao/ws/src/fsf/cfg/dataSAGAST12s" );
             }
             else
             {
-                agast12s->loadOffsetsTable( "/home/gao/ws/src/vins/config/dual/table" );
+                agast12s->loadOffsetsCfg( "/home/gao/ws/src/fsf/cfg/dataSAGAST12s" );
             }
             t = ( ( double )getTickCount( ) - t ) / getTickFrequency( );
             sum_t += resize_num * t * 1000;
@@ -274,7 +274,7 @@ main( )
     ////////////////////////////////////////////////////////////////////////////////////////
     ////////////////////////////////////////////////////////////////////////////////////////
     // 16 ///////////////////////////////////////////////////////////////////////////////
-    if ( false )
+    if ( true )
     {
         keyPoints_1.clear( );
         keyPoints_2.clear( );
@@ -293,14 +293,14 @@ main( )
         for ( int i = 0; i < 1; ++i )
         {
             t = getTickCount( );
-            if ( 0 )
+            if ( 1 )
             {
                 agast16->buildOffsetsTable( );
-                agast16->saveOffsetsTable( "/home/gao/ws/src/vins/config/dual/table" );
+                agast16->saveOffsetsCfg( "/home/gao/ws/src/fsf/cfg/dataSAGAS16" );
             }
             else
             {
-                agast16->loadOffsetsTable( "/home/gao/ws/src/vins/config/dual/table" );
+                agast16->loadOffsetsCfg( "/home/gao/ws/src/fsf/cfg/dataSAGAS16" );
             }
             t = ( ( double )getTickCount( ) - t ) / getTickFrequency( );
             sum_t += resize_num * t * 1000;

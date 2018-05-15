@@ -37,7 +37,7 @@ include_directories(
 #set(CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
 
 set(agast_LIB_SOURCE_FILES
-    ${PROJECT_SOURCE_DIR}/src/sagast/sagast_src.cpp
+    ${PROJECT_SOURCE_DIR}/src/sagast/sagast.cpp
     ${PROJECT_SOURCE_DIR}/src/sagast/score/sagast_score.cpp
     ${PROJECT_SOURCE_DIR}/src/sagast/sagast_core/AGAST_8/AGAST_8.cpp
     ${PROJECT_SOURCE_DIR}/src/sagast/sagast_core/AGAST_8/OffsetsTable_8.cpp
@@ -60,8 +60,11 @@ set(sfreak_LIB_SOURCE_FILES
 add_library(sagast     ${agast_LIB_SOURCE_FILES})
 target_link_libraries(sagast     ${Boost_LIBRARIES}  ${catkin_LIBRARIES}  ${OpenCV_LIBS} )
 
-add_executable(run_sagast    src/sagast.cpp    ${agast_LIB_SOURCE_FILES}    )
+add_executable(run_sagast    src/run_sagast.cpp    ${agast_LIB_SOURCE_FILES}    )
 target_link_libraries(run_sagast dw ${catkin_LIBRARIES}  ${catkin_LIBRARIES}  ${OpenCV_LIBS})
+
+add_executable(calcCfgSagast    src/calcCfgSagast.cpp    ${agast_LIB_SOURCE_FILES}    )
+target_link_libraries(calcCfgSagast dw ${catkin_LIBRARIES}  ${catkin_LIBRARIES}  ${OpenCV_LIBS})
 
 add_executable(run_sfreak    src/run_sfreak.cpp    ${sfreak_LIB_SOURCE_FILES}  ${agast_LIB_SOURCE_FILES})
 target_link_libraries(run_sfreak dw ${catkin_LIBRARIES}  ${catkin_LIBRARIES}  ${OpenCV_LIBS})
