@@ -43,12 +43,10 @@ detectFREAK( Mat& img1, Mat& img2, vector< KeyPoint >& kp1, vector< KeyPoint >& 
     {
         agast12->buildOffsetsTable( );
         agast12->saveOffsetsCfg( "/home/gao/data_SAGAST12d_down" );
-        //        agast12->saveOffsetsTable( "/home/gao/ws/src/vins/config/dual/table" );
     }
     else
     {
         agast12->loadOffsetsCfg( "/home/gao/data_SAGAST12d_down" );
-        //        agast12->loadOffsetsTable( "/home/gao/ws/src/vins/config/dual/table" );
     }
     agast12->detect( img1, kp1 );
     std::cout << "size1: " << kp1.size( ) << std::endl;
@@ -78,16 +76,14 @@ detectFREAK( Mat& img1, Mat& img2, vector< KeyPoint >& kp1, vector< KeyPoint >& 
     = cv::AgastDetector::create( 20, true, cv::AgastDetector::SAGAST_12d );
     agast122->loadCamera( file_cam2 );
     agast122->loadMask( );
-    if ( 1 )
+    if ( 0 )
     {
         agast122->buildOffsetsTable( );
         agast122->saveOffsetsCfg( "/home/gao/data_SAGAST12d_f" );
-        //        agast122->saveOffsetsTable( "/home/gao/ws/src/vins/config/dual/table2" );
     }
     else
     {
         agast122->loadOffsetsCfg( "/home/gao/data_SAGAST12d_f" );
-        //        agast122->loadOffsetsTable( "/home/gao/ws/src/vins/config/dual/table2" );
     }
 
     //    cv::Mat image2;
@@ -117,9 +113,16 @@ detectFREAK( Mat& img1, Mat& img2, vector< KeyPoint >& kp1, vector< KeyPoint >& 
     //////////////////////////////////////////////////////
 
     Ptr< SFREAK > freak = cv::SFREAK::create( true, true, 36, 4 );
-    //    load camera
     freak->loadCamera( file_cam );
-    freak->loadMask( );
+    freak->loadMask( file_mask );
+
+    Ptr< SFREAK > freak2 = cv::SFREAK::create( true, true, 36, 4 );
+    freak2->loadCamera( file_cam2 );
+    freak2->loadMask( );
+
+    std::cout << "/////////////////////////////////////// \n";
+    std::cout << "/////////////////////////////////////// \n";
+
     t = getTickCount( );
     freak->compute( img1, kp1, des1 );
     t = ( ( double )getTickCount( ) - t ) / getTickFrequency( );
@@ -128,9 +131,6 @@ detectFREAK( Mat& img1, Mat& img2, vector< KeyPoint >& kp1, vector< KeyPoint >& 
 
     std::cout << "[#INFO] image 1 process done.  \n";
 
-    Ptr< SFREAK > freak2 = cv::SFREAK::create( true, true, 36, 4 );
-    freak2->loadCamera( file_cam2 );
-    freak2->loadMask( );
     t = getTickCount( );
     freak2->compute( img2, kp2, des2 );
     t = ( ( double )getTickCount( ) - t ) / getTickFrequency( );
@@ -198,6 +198,17 @@ runRANSAC( vector< DMatch >& good_matches, const vector< KeyPoint >& kp1, const 
 }
 
 void
+dispAngole( vector< DMatch >& good_matches, const vector< KeyPoint >& kp1, const vector< KeyPoint >& kp2 )
+{
+    for ( size_t index = 0; index < good_matches.size( ); ++index )
+    {
+        int sub_des1 = good_matches[index].queryIdx;
+        int sub_des2 = good_matches[index].trainIdx;
+        std::cout << " " << kp1[sub_des1].angle << " " << kp2[sub_des2].angle << "\n";
+    }
+}
+
+void
 matchFREAK( Mat& img1, Mat& img2, vector< KeyPoint >& kp1, vector< KeyPoint >& kp2, Mat& des1, Mat& des2 )
 {
     // cv::BruteForceMatcher< HammingLUT > matcher;
@@ -252,7 +263,7 @@ matchFREAK( Mat& img1, Mat& img2, vector< KeyPoint >& kp1, vector< KeyPoint >& k
         }
     }
 
-    cout << "good_matches " << good_matches.size( ) << endl;
+    cout << "matches " << good_matches.size( ) << endl;
 
     Mat img_matches;
     drawMatches( img1,
@@ -267,11 +278,8 @@ matchFREAK( Mat& img1, Mat& img2, vector< KeyPoint >& kp1, vector< KeyPoint >& k
                  DrawMatchesFlags::NOT_DRAW_SINGLE_POINTS );
 
     showImg( "dst_0", img_matches );
-    cv::waitKey( 0 );
 
     runRANSAC( good_matches, kp1, kp2 );
-
-    cout << "good_matches " << good_matches.size( ) << endl;
 
     drawMatches( img1,
                  kp1,
@@ -283,6 +291,11 @@ matchFREAK( Mat& img1, Mat& img2, vector< KeyPoint >& kp1, vector< KeyPoint >& k
                  Scalar( 0, 0, 255 ),
                  vector< char >( ),
                  DrawMatchesFlags::NOT_DRAW_SINGLE_POINTS );
+
+    cout << "good_matches " << good_matches.size( ) << " of " << kp1.size( ) << " and "
+         << kp2.size( ) << endl;
+
+    //    dispAngole( good_matches, kp1, kp2 );
 
     showImg( "dst", img_matches );
     cv::waitKey( 0 );

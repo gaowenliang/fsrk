@@ -36,6 +36,7 @@
 #include "../shape/ellipse.h"
 #include <algorithm>
 #include <bitset>
+#include <code_utils/sys_utils/tic_toc.h>
 #include <fstream>
 #include <iomanip>
 #include <iostream>
@@ -43,6 +44,8 @@
 #include <sstream>
 #include <stdlib.h>
 #include <string.h>
+
+//#define Table
 
 namespace cv
 {
@@ -66,6 +69,13 @@ class SFREAK_Impl : public SFREAK
                           int nOctaves                            = 4,
                           const std::vector< int >& selectedPairs = std::vector< int >( ) );
 
+    explicit SFREAK_Impl( std::string cam_file,
+                          bool orientationNormalized              = true,
+                          bool scaleNormalized                    = true,
+                          float patternScale                      = 22.0f,
+                          int nOctaves                            = 4,
+                          const std::vector< int >& selectedPairs = std::vector< int >( ) );
+
     virtual ~SFREAK_Impl( );
 
     /** returns the descriptor length in bytes */
@@ -76,8 +86,6 @@ class SFREAK_Impl : public SFREAK
 
     /** returns the default norm type */
     virtual int defaultNorm( ) const;
-
-    void drawPattern( );
 
     /** select the 512 "best description pairs"
      * @param images grayscale images set
@@ -92,17 +100,30 @@ class SFREAK_Impl : public SFREAK
                                     bool verbose            = true );
     virtual void compute( InputArray image, std::vector< KeyPoint >& keypoints, OutputArray descriptors );
 
+    void drawPattern( );
+
     protected:
     void buildPattern( );
 
     template< typename imgType, typename iiType >
     imgType meanIntensity( InputArray image,
-                           InputArray integral,
                            const float kp_x,
                            const float kp_y,
                            const unsigned int scale,
                            const unsigned int rot,
                            const unsigned int point );
+
+    template< typename imgType, typename iiType >
+    imgType meanIntensityTable( InputArray image,
+                                const int index,
+                                const float cosTheta,
+                                const float sinTheta,
+                                const float theta,
+                                const float kp_x,
+                                const float kp_y,
+                                const unsigned int scale,
+                                const unsigned int rot,
+                                const unsigned int point );
 
     template< typename srcMatType, typename iiMatType >
     void computeDescriptors( InputArray image, std::vector< KeyPoint >& keypoints, OutputArray descriptors );
@@ -120,11 +141,9 @@ class SFREAK_Impl : public SFREAK
     int nOctaves0;
     std::vector< int > selectedPairs0;
 
-    struct PatternPoint
+    struct PatternEllipse
     {
-        float x;     // x coordinate relative to center
-        float y;     // x coordinate relative to center
-        float sigma; // Gaussian smoothing sigma
+        EllipsePtr pPatt;
     };
 
     struct DescriptionPair
@@ -141,18 +160,24 @@ class SFREAK_Impl : public SFREAK
         int weight_dy; // dy/(norm_sq))*4096
     };
 
-    std::vector< PatternPoint > patternLookup; // look-up table for the pattern points
-                                               // (position+sigma of all points at all
-                                               // scales and orientation)
+    // look-up table for the pattern points
+    // (position+sigma of all points at all
+    // scales and orientation)
+    std::vector< PatternEllipse > patternLookup;
+    std::vector< std::vector< PatternEllipse > > patternTable;
+    //    std::vector< PatternEllipse > patternLookup;
+
     int patternSizes[NB_SCALES]; // size of the pattern at a specific scale (used to check
                                  // if a point is within image boundaries)
     DescriptionPair descriptionPairs[NB_PAIRS];
     OrientationPair orientationPairs[NB_ORIENPAIRS];
 };
 
-static const double FREAK_LOG2          = 0.693147180559945;
-static const int FREAK_NB_ORIENTATION   = 256;
-static const int FREAK_NB_POINTS        = 43;
+static const double FREAK_LOG2 = 0.693147180559945;
+// static const int FREAK_NB_ORIENTATION = 1; // 180
+// static const int FREAK_NB_POINTS      = 43;
+#define FREAK_NB_ORIENTATION 6 // 180
+#define FREAK_NB_POINTS 43
 static const int FREAK_SMALLEST_KP_SIZE = 7; // smallest size of keypoints
 static const int FREAK_NB_SCALES        = SFREAK::NB_SCALES;
 static const int FREAK_NB_PAIRS         = SFREAK::NB_PAIRS;
@@ -207,18 +232,96 @@ struct sortMean
     }
 };
 
+int color_rand1;
+int color_rand2;
+int color_rand3;
+Mat image_color;
+
+// create an image showing the brisk pattern
+void
+SFREAK_Impl::drawPattern( )
+{
+    Mat pattern = Mat::zeros( 1000, 1000, CV_8UC3 ) + Scalar( 255, 255, 255 );
+    int sFac    = 500 / patternScale;
+    for ( int n = 0; n < FREAK_NB_POINTS; ++n )
+    {
+        PatternEllipse& pt = patternLookup[n];
+        circle( pattern,
+                Point( pt.pPatt->box.center.x * sFac, pt.pPatt->box.center.y * sFac ) + Point( 500, 500 ),
+                pt.pPatt->box.size.width * sFac,
+                Scalar( 0, 0, 255 ),
+                2 );
+        rectangle( pattern,
+                   Point( ( pt.pPatt->box.center.x - pt.pPatt->box.size.width ) * sFac,
+                          ( pt.pPatt->box.center.y - pt.pPatt->box.size.width ) * sFac )
+                   + Point( 500, 500 ),
+                   Point( ( pt.pPatt->box.center.x + pt.pPatt->box.size.width ) * sFac,
+                          ( pt.pPatt->box.center.y + pt.pPatt->box.size.width ) * sFac )
+                   + Point( 500, 500 ),
+                   Scalar( 0, 0, 255 ),
+                   2 );
+
+        circle( pattern,
+                Point( pt.pPatt->box.center.x * sFac, pt.pPatt->box.center.y * sFac ) + Point( 500, 500 ),
+                1,
+                Scalar( 0, 0, 0 ),
+                3 );
+        std::ostringstream oss;
+        oss << n;
+        putText( pattern,
+                 oss.str( ),
+                 Point( pt.pPatt->box.center.x * sFac, pt.pPatt->box.center.y * sFac ) + Point( 500, 500 ),
+                 FONT_HERSHEY_SIMPLEX,
+                 0.5,
+                 Scalar( 0, 0, 0 ),
+                 1 );
+    }
+    imshow( "FreakDescriptorExtractor pattern", pattern );
+    waitKey( 0 );
+}
+
 void
 SFREAK_Impl::buildPattern( )
 {
-    if ( patternScale == patternScale0 && nOctaves == nOctaves0 && !patternLookup.empty( ) )
+    if ( patternScale == patternScale0 //
+         && nOctaves == nOctaves0
+         && !patternLookup.empty( )
+         && !patternTable.empty( ) )
         return;
 
     nOctaves0     = nOctaves;
     patternScale0 = patternScale;
 
-    patternLookup.resize( FREAK_NB_SCALES * FREAK_NB_ORIENTATION * FREAK_NB_POINTS );
-    std::cout << "patternLookup size: " << patternLookup.size( ) << "\n";
+    int img_width          = cam->imageWidth( );
+    int img_height         = cam->imageHeight( );
+    cv::Point2f center_cam = image_center;
 
+    std::vector< float > pixels_size;
+    pixels_size.push_back( std::sqrt( ( center_cam.x - 0 ) * ( center_cam.x - 0 )
+                                      + ( center_cam.y - 0 ) * ( center_cam.y - 0 ) ) );
+    pixels_size.push_back( std::sqrt( ( center_cam.x - img_width ) * ( center_cam.x - img_width )
+                                      + ( center_cam.y - 0 ) * ( center_cam.y - 0 ) ) );
+    pixels_size.push_back( std::sqrt( ( center_cam.x - img_width ) * ( center_cam.x - img_width )
+                                      + ( center_cam.y - img_height ) * ( center_cam.y - img_height ) ) );
+    pixels_size.push_back( std::sqrt( ( center_cam.x - 0 ) * ( center_cam.x - 0 )
+                                      + ( center_cam.y - img_height ) * ( center_cam.y - img_height ) ) );
+
+    pixel_size = std::max( std::max( pixels_size[0], pixels_size[1] ),
+                           std::max( pixels_size[2], pixels_size[3] ) );
+    std::cout << "pixel_size " << pixel_size << "\n";
+
+    patternLookup.resize( FREAK_NB_SCALES * FREAK_NB_ORIENTATION * FREAK_NB_POINTS );
+    std::cout << "[#Debug] patternLookup size: " << patternLookup.size( ) << "\n\n\n";
+
+#ifdef Table
+    patternTable.resize( pixel_size );
+    for ( int index = 0; index < pixel_size; ++index )
+    {
+        patternTable[index].resize( FREAK_NB_SCALES * FREAK_NB_ORIENTATION * FREAK_NB_POINTS );
+    }
+    std::cout << "[#Debug] patternTable size: " << patternTable[0].size( ) * patternTable.size( )
+              << "\n\n\n";
+#endif
     // 2 ^ ( (nOctaves-1) /nbScales)
     double scaleStep = std::pow( 2.0, ( double )( nOctaves ) / FREAK_NB_SCALES );
     double scalingFactor, alpha, beta, theta = 0;
@@ -246,9 +349,143 @@ SFREAK_Impl::buildPattern( )
 
     // sigma of pattern points (each group of 6 points on a concentric cirle
     // has the same sigma)
-    const double sigma[8]
-    = { radius[0] / 2.0, radius[1] / 2.0, radius[2] / 2.0, radius[3] / 2.0,
-        radius[4] / 2.0, radius[5] / 2.0, radius[6] / 2.0, radius[6] / 2.0 };
+    const double sigma[8] = { radius[0] / 2.0, //
+                              radius[1] / 2.0, //
+                              radius[2] / 2.0, //
+                              radius[3] / 2.0, //
+                              radius[4] / 2.0, //
+                              radius[5] / 2.0, //
+                              radius[6] / 2.0, //
+                              radius[6] / 2.0 };
+#ifdef Table
+
+    for ( int index = 0; index < pixel_size; ++index )
+    {
+        color_rand1 = rand( ) % 256;
+        color_rand2 = rand( ) % 256;
+        color_rand3 = rand( ) % 256;
+
+        for ( int scaleIdx = 0; scaleIdx < FREAK_NB_SCALES; ++scaleIdx )
+        {
+            patternSizes[scaleIdx] = 0; // proper initialization
+
+            // scale of the pattern, scaleStep ^ scaleIdx
+            scalingFactor = std::pow( scaleStep, scaleIdx );
+
+            for ( int orientationIdx = 0; orientationIdx < FREAK_NB_ORIENTATION; ++orientationIdx )
+            {
+                // orientation of the pattern
+                double full_angle = 60.0 * CV_PI / 180.0;
+                //                    theta = double( orientationIdx ) * full_angle /
+                //                    double( FREAK_NB_ORIENTATION );
+                theta = double( orientationIdx ) * 2 * CV_PI / double( FREAK_NB_ORIENTATION );
+
+                int pointIdx = 0;
+
+                PatternEllipse* patternLookupPtr = &patternTable[index][0];
+
+                // 8 groups
+                for ( size_t i = 0; i < 8; ++i )
+                {
+                    // 6 circles per group
+                    for ( int k = 0; k < n[i]; ++k )
+                    {
+                        // orientation offset so that groups of points
+                        // on each circles are staggered
+                        beta  = CV_PI / n[i] * ( i % 2 );
+                        alpha = double( k ) * 2 * CV_PI / double( n[i] ) + beta + theta;
+
+                        // add the point to the look-up table
+                        PatternEllipse& ell
+                        = patternLookupPtr[scaleIdx * FREAK_NB_ORIENTATION * FREAK_NB_POINTS //
+                                           + orientationIdx * FREAK_NB_POINTS
+                                           + pointIdx];
+
+                        float center_x = static_cast< float >(
+                        radius[i] * cos( alpha ) * scalingFactor * patternScale );
+                        float center_y = static_cast< float >(
+                        radius[i] * sin( alpha ) * scalingFactor * patternScale );
+
+                        float center_c_x = center_x + image_center.x;
+                        float center_c_y = center_y + image_center.y;
+                        float radius_c = static_cast< float >( sigma[i] * scalingFactor * patternScale );
+
+                        cv::CircleInt cirle( Point( center_c_x, center_c_y ), int( radius_c ) );
+                        std::vector< cv::Point2f > pts_circle;
+                        pts_circle = cirle.getCirclePoints( cam->imageSize( ) );
+
+                        // src pt
+                        Eigen::Vector2d p_u00( image_center.x, image_center.y );
+                        Eigen::Vector3d P_center;
+                        cam->liftSphere( p_u00, P_center );
+                        P_center.normalize( );
+
+                        // dst pt
+                        Eigen::Vector2d p_u( image_center.x + index, image_center.y );
+                        Eigen::Vector2d angle_center = calcAngle( cam, p_u );
+                        Eigen::Vector3d P_center2( cos( angle_center( 1 ) ) * sin( angle_center( 0 ) ),
+                                                   sin( angle_center( 1 ) ) * sin( angle_center( 0 ) ),
+                                                   cos( angle_center( 0 ) ) );
+                        P_center2.normalize( );
+
+                        // delta vector
+                        double delta_angle   = acos( P_center.dot( P_center2 ) );
+                        Eigen::Vector3d dVec = P_center.cross( P_center2 );
+                        dVec.normalize( );
+
+                        // rotation vector
+                        Eigen::Quaterniond q_v1v0( cos( 0.5 * delta_angle ),
+                                                   sin( 0.5 * delta_angle ) * dVec( 0 ),
+                                                   sin( 0.5 * delta_angle ) * dVec( 1 ),
+                                                   sin( 0.5 * delta_angle ) * dVec( 2 ) );
+
+                        std::vector< cv::Point2f > pt_ellipse;
+                        for ( auto& pt : pts_circle )
+                        {
+                            Eigen::Vector2d p_src2( pt.x, pt.y );
+                            Eigen::Vector3d P_src2;
+                            cam->liftSphere( p_src2, P_src2 );
+
+                            Eigen::Vector3d offset_P2 = q_v1v0 * P_src2;
+
+                            Eigen::Vector2d offset_p2;
+                            cam->spaceToPlane( offset_P2, offset_p2 );
+                            // drawPoint2Yellow( image_color, offset_p2 );
+
+                            pt_ellipse.push_back( cv::Point2f( offset_p2( 0 ), offset_p2( 1 ) ) );
+                        }
+
+                        Ellipse ellip_fit;
+                        ellip_fit.fit( pt_ellipse );
+
+                        EllipsePtr ellip(
+                        new Ellipse( ellip_fit.box.center - cv::Point2f( p_u( 0 ), p_u( 1 ) ),
+                                     ellip_fit.box.size,
+                                     ellip_fit.box.angle ) );
+                        ell.pPatt = ellip;
+
+                        // NOTE
+                        if ( index % 15 == 0 )
+                            ellip_fit.draw( image_color, cv::Scalar( color_rand1, color_rand2, color_rand3 ) );
+
+                        // adapt the sizeList if necessary
+                        const int sizeMax
+                        = static_cast< int >( ceil( ( radius[i] + sigma[i] ) * scalingFactor * patternScale ) )
+                          + 1;
+
+                        if ( patternSizes[scaleIdx] < sizeMax )
+                            patternSizes[scaleIdx] = sizeMax;
+
+                        ++pointIdx;
+                    }
+                }
+            }
+        }
+    }
+#endif
+
+    // cv::imshow( "image_color_src", image_color );
+    // cv::waitKey( 0 );
 
     // fill the lookup table
     for ( int scaleIdx = 0; scaleIdx < FREAK_NB_SCALES; ++scaleIdx )
@@ -262,33 +499,43 @@ SFREAK_Impl::buildPattern( )
         for ( int orientationIdx = 0; orientationIdx < FREAK_NB_ORIENTATION; ++orientationIdx )
         {
             // orientation of the pattern
+            double full_angle = 60.0 * CV_PI / 180.0;
+            //                    theta = double( orientationIdx ) * full_angle /
+            //                    double( FREAK_NB_ORIENTATION );
             theta = double( orientationIdx ) * 2 * CV_PI / double( FREAK_NB_ORIENTATION );
-
-            //            if ( scaleIdx == 0 )
-            //                std::cout << theta * 57.29 << " ";
 
             int pointIdx = 0;
 
-            PatternPoint* patternLookupPtr = &patternLookup[0];
+            PatternEllipse* patternLookupPtr = &patternLookup[0];
 
-            //
+            // std::cout << "\n theta  " << theta << "\n";
+            // 8 groups
             for ( size_t i = 0; i < 8; ++i )
             {
+                // 6 circles per group
                 for ( int k = 0; k < n[i]; ++k )
                 {
-                    // orientation offset so that groups of points on each circles are
-                    // staggered
+                    // orientation offset so that groups of points
+                    // on each circles are staggered
                     beta  = CV_PI / n[i] * ( i % 2 );
                     alpha = double( k ) * 2 * CV_PI / double( n[i] ) + beta + theta;
 
+                    // std::cout << "beta  " << beta << "\n";
+                    // std::cout << "alpha " << alpha << "\n";
                     // add the point to the look-up table
-                    PatternPoint& point = patternLookupPtr[scaleIdx * FREAK_NB_ORIENTATION * FREAK_NB_POINTS //
+                    PatternEllipse& ell = patternLookupPtr[scaleIdx * FREAK_NB_ORIENTATION * FREAK_NB_POINTS //
                                                            + orientationIdx * FREAK_NB_POINTS
                                                            + pointIdx];
 
-                    point.x = static_cast< float >( radius[i] * cos( alpha ) * scalingFactor * patternScale );
-                    point.y = static_cast< float >( radius[i] * sin( alpha ) * scalingFactor * patternScale );
-                    point.sigma = static_cast< float >( sigma[i] * scalingFactor * patternScale );
+                    EllipsePtr ellip( new Ellipse );
+                    ell.pPatt = ellip;
+
+                    ell.pPatt->box.center.x
+                    = static_cast< float >( radius[i] * cos( alpha ) * scalingFactor * patternScale );
+                    ell.pPatt->box.center.y
+                    = static_cast< float >( radius[i] * sin( alpha ) * scalingFactor * patternScale );
+                    ell.pPatt->box.size.width
+                    = static_cast< float >( sigma[i] * scalingFactor * patternScale );
 
                     // adapt the sizeList if necessary
                     const int sizeMax
@@ -299,7 +546,6 @@ SFREAK_Impl::buildPattern( )
                         patternSizes[scaleIdx] = sizeMax;
 
                     ++pointIdx;
-                    //                    std::cout << pointIdx << " ";
                 }
             }
         }
@@ -307,64 +553,86 @@ SFREAK_Impl::buildPattern( )
 
     // build the list of orientation pairs
     // clang-format off
-    orientationPairs[0].i = 0;      orientationPairs[0].j = 3;
-    orientationPairs[1].i = 1;      orientationPairs[1].j = 4;
-    orientationPairs[2].i = 2;      orientationPairs[2].j = 5;
-    orientationPairs[3].i = 0;      orientationPairs[3].j = 2;
-    orientationPairs[4].i = 1;      orientationPairs[4].j = 3;
-    orientationPairs[5].i = 2;      orientationPairs[5].j = 4;
-    orientationPairs[6].i = 3;      orientationPairs[6].j = 5;
-    orientationPairs[7].i = 4;      orientationPairs[7].j = 0;
-    orientationPairs[8].i = 5;      orientationPairs[8].j = 1;
-    orientationPairs[9].i  = 6;     orientationPairs[9].j  = 9;
-    orientationPairs[10].i = 7;     orientationPairs[10].j = 10;
-    orientationPairs[11].i = 8;     orientationPairs[11].j = 11;
-    orientationPairs[12].i = 6;     orientationPairs[12].j = 8;
-    orientationPairs[13].i = 7;     orientationPairs[13].j = 9;
-    orientationPairs[14].i = 8;     orientationPairs[14].j = 10;
-    orientationPairs[15].i = 9;     orientationPairs[15].j = 11;
-    orientationPairs[16].i = 10;    orientationPairs[16].j = 6;
-    orientationPairs[17].i = 11;    orientationPairs[17].j = 7;
-    orientationPairs[18].i = 12;    orientationPairs[18].j = 15;
-    orientationPairs[19].i = 13;    orientationPairs[19].j = 16;
-    orientationPairs[20].i = 14;    orientationPairs[20].j = 17;
-    orientationPairs[21].i = 12;    orientationPairs[21].j = 14;
-    orientationPairs[22].i = 13;    orientationPairs[22].j = 15;
-    orientationPairs[23].i = 14;    orientationPairs[23].j = 16;
-    orientationPairs[24].i = 15;    orientationPairs[24].j = 17;
-    orientationPairs[25].i = 16;    orientationPairs[25].j = 12;
-    orientationPairs[26].i = 17;    orientationPairs[26].j = 13;
-    orientationPairs[27].i = 18;    orientationPairs[27].j = 21;
-    orientationPairs[28].i = 19;    orientationPairs[28].j = 22;
-    orientationPairs[29].i = 20;    orientationPairs[29].j = 23;
-    orientationPairs[30].i = 18;    orientationPairs[30].j = 20;
-    orientationPairs[31].i = 19;    orientationPairs[31].j = 21;
-    orientationPairs[32].i = 20;    orientationPairs[32].j = 22;
-    orientationPairs[33].i = 21;    orientationPairs[33].j = 23;
-    orientationPairs[34].i = 22;    orientationPairs[34].j = 18;
-    orientationPairs[35].i = 23;    orientationPairs[35].j = 19;
-    orientationPairs[36].i = 24;    orientationPairs[36].j = 27;
-    orientationPairs[37].i = 25;    orientationPairs[37].j = 28;
-    orientationPairs[38].i = 26;    orientationPairs[38].j = 29;
-    orientationPairs[39].i = 30;    orientationPairs[39].j = 33;
-    orientationPairs[40].i = 31;    orientationPairs[40].j = 34;
-    orientationPairs[41].i = 32;    orientationPairs[41].j = 35;
-    orientationPairs[42].i = 36;    orientationPairs[42].j = 39;
-    orientationPairs[43].i = 37;    orientationPairs[43].j = 40;
-    orientationPairs[44].i = 38;    orientationPairs[44].j = 41;
+       orientationPairs[0].i = 0;      orientationPairs[0].j = 3;
+       orientationPairs[1].i = 1;      orientationPairs[1].j = 4;
+       orientationPairs[2].i = 2;      orientationPairs[2].j = 5;
+       orientationPairs[3].i = 0;      orientationPairs[3].j = 2;
+       orientationPairs[4].i = 1;      orientationPairs[4].j = 3;
+       orientationPairs[5].i = 2;      orientationPairs[5].j = 4;
+       orientationPairs[6].i = 3;      orientationPairs[6].j = 5;
+       orientationPairs[7].i = 4;      orientationPairs[7].j = 0;
+       orientationPairs[8].i = 5;      orientationPairs[8].j = 1;
+       orientationPairs[9].i  = 6;     orientationPairs[9].j  = 9;
+       orientationPairs[10].i = 7;     orientationPairs[10].j = 10;
+       orientationPairs[11].i = 8;     orientationPairs[11].j = 11;
+       orientationPairs[12].i = 6;     orientationPairs[12].j = 8;
+       orientationPairs[13].i = 7;     orientationPairs[13].j = 9;
+       orientationPairs[14].i = 8;     orientationPairs[14].j = 10;
+       orientationPairs[15].i = 9;     orientationPairs[15].j = 11;
+       orientationPairs[16].i = 10;    orientationPairs[16].j = 6;
+       orientationPairs[17].i = 11;    orientationPairs[17].j = 7;
+       orientationPairs[18].i = 12;    orientationPairs[18].j = 15;
+       orientationPairs[19].i = 13;    orientationPairs[19].j = 16;
+       orientationPairs[20].i = 14;    orientationPairs[20].j = 17;
+       orientationPairs[21].i = 12;    orientationPairs[21].j = 14;
+       orientationPairs[22].i = 13;    orientationPairs[22].j = 15;
+       orientationPairs[23].i = 14;    orientationPairs[23].j = 16;
+       orientationPairs[24].i = 15;    orientationPairs[24].j = 17;
+       orientationPairs[25].i = 16;    orientationPairs[25].j = 12;
+       orientationPairs[26].i = 17;    orientationPairs[26].j = 13;
+       orientationPairs[27].i = 18;    orientationPairs[27].j = 21;
+       orientationPairs[28].i = 19;    orientationPairs[28].j = 22;
+       orientationPairs[29].i = 20;    orientationPairs[29].j = 23;
+       orientationPairs[30].i = 18;    orientationPairs[30].j = 20;
+       orientationPairs[31].i = 19;    orientationPairs[31].j = 21;
+       orientationPairs[32].i = 20;    orientationPairs[32].j = 22;
+       orientationPairs[33].i = 21;    orientationPairs[33].j = 23;
+       orientationPairs[34].i = 22;    orientationPairs[34].j = 18;
+       orientationPairs[35].i = 23;    orientationPairs[35].j = 19;
+       orientationPairs[36].i = 24;    orientationPairs[36].j = 27;
+       orientationPairs[37].i = 25;    orientationPairs[37].j = 28;
+       orientationPairs[38].i = 26;    orientationPairs[38].j = 29;
+       orientationPairs[39].i = 30;    orientationPairs[39].j = 33;
+       orientationPairs[40].i = 31;    orientationPairs[40].j = 34;
+       orientationPairs[41].i = 32;    orientationPairs[41].j = 35;
+       orientationPairs[42].i = 36;    orientationPairs[42].j = 39;
+       orientationPairs[43].i = 37;    orientationPairs[43].j = 40;
+       orientationPairs[44].i = 38;    orientationPairs[44].j = 41;
     // clang-format on
 
     for ( unsigned m = FREAK_NB_ORIENPAIRS; m--; )
     {
-        const float dx = patternLookup[orientationPairs[m].i].x //
-                         - patternLookup[orientationPairs[m].j].x;
-        const float dy = patternLookup[orientationPairs[m].i].y //
-                         - patternLookup[orientationPairs[m].j].y;
+        const float dx = patternLookup[orientationPairs[m].i].pPatt->box.center.x
+                         - patternLookup[orientationPairs[m].j].pPatt->box.center.x;
+
+        const float dy = patternLookup[orientationPairs[m].i].pPatt->box.center.y
+                         - patternLookup[orientationPairs[m].j].pPatt->box.center.y;
+
         const float norm_sq = ( dx * dx + dy * dy );
 
         orientationPairs[m].weight_dx = int( ( dx / ( norm_sq ) ) * 4096.0 + 0.5 );
         orientationPairs[m].weight_dy = int( ( dy / ( norm_sq ) ) * 4096.0 + 0.5 );
     }
+
+#ifdef Table
+
+    for ( int index = 0; index < pixel_size; ++index )
+    {
+        for ( unsigned m = FREAK_NB_ORIENPAIRS; m--; )
+        {
+            const float dx = patternTable[index][orientationPairs[m].i].pPatt->box.center.x
+                             - patternTable[index][orientationPairs[m].j].pPatt->box.center.x;
+
+            const float dy = patternTable[index][orientationPairs[m].i].pPatt->box.center.y
+                             - patternTable[index][orientationPairs[m].j].pPatt->box.center.y;
+
+            const float norm_sq = ( dx * dx + dy * dy );
+
+            orientationPairs[m].weight_dx = int( ( dx / ( norm_sq ) ) * 4096.0 + 0.5 );
+            orientationPairs[m].weight_dy = int( ( dy / ( norm_sq ) ) * 4096.0 + 0.5 );
+        }
+    }
+#endif
 
     // build the list of description pairs
     std::vector< DescriptionPair > allPairs;
@@ -377,14 +645,17 @@ SFREAK_Impl::buildPattern( )
             allPairs.push_back( pair );
         }
     }
+    std::cout << "allPairs " << allPairs.size( ) << "\n";
 
     // Input vector provided
     if ( !selectedPairs0.empty( ) )
     {
         if ( ( int )selectedPairs0.size( ) == FREAK_NB_PAIRS )
         {
-            for ( int i             = 0; i < FREAK_NB_PAIRS; ++i )
+            for ( int i = 0; i < FREAK_NB_PAIRS; ++i )
+            {
                 descriptionPairs[i] = allPairs[selectedPairs0.at( i )];
+            }
         }
         else
         {
@@ -394,10 +665,13 @@ SFREAK_Impl::buildPattern( )
     }
     else // default selected pairs
     {
-        for ( int i             = 0; i < FREAK_NB_PAIRS; ++i )
+        for ( int i = 0; i < FREAK_NB_PAIRS; ++i )
+        {
             descriptionPairs[i] = allPairs[FREAK_DEF_PAIRS[i]];
+        }
     }
-    drawPattern( );
+
+    //    drawPattern( );
 }
 
 void
@@ -408,6 +682,8 @@ SFREAK_Impl::compute( InputArray _image, std::vector< KeyPoint >& keypoints, Out
         return;
     if ( keypoints.empty( ) )
         return;
+
+    cv::cvtColor( image, image_color, cv::COLOR_GRAY2BGR );
 
     ( ( SFREAK_Impl* )this )->buildPattern( );
 
@@ -422,19 +698,18 @@ SFREAK_Impl::compute( InputArray _image, std::vector< KeyPoint >& keypoints, Out
     }
 
     // Use 32-bit integers if we won't overflow in the integral image
-    if ( ( image.depth( ) == CV_8U || image.depth( ) == CV_8S ) && ( image.rows * image.cols ) < 8388608 ) // 8388608 = 2 ^ (32 - 8(bit depth) - 1(sign bit))
+    // 8388608 = 2 ^ (32 - 8(bit depth) - 1(sign bit))
+    if ( ( image.depth( ) == CV_8U || image.depth( ) == CV_8S ) && ( image.rows * image.cols ) < 8388608 )
     {
         // Create the integral image appropriate for our type & usage
         if ( image.depth( ) == CV_8U )
         {
-            std::cout << " < uchar, int > "
-                      << "\n";
+            std::cout << " < uchar, int > \n";
             computeDescriptors< uchar, int >( grayImage, keypoints, _descriptors );
         }
         else if ( image.depth( ) == CV_8S )
         {
-            std::cout << " < char, int > "
-                      << "\n";
+            std::cout << " < char, int > \n";
             computeDescriptors< char, int >( grayImage, keypoints, _descriptors );
         }
         else
@@ -445,26 +720,22 @@ SFREAK_Impl::compute( InputArray _image, std::vector< KeyPoint >& keypoints, Out
         // Create the integral image appropriate for our type & usage
         if ( image.depth( ) == CV_8U )
         {
-            std::cout << " < uchar, double > "
-                      << "\n";
+            std::cout << " < uchar, double > \n";
             computeDescriptors< uchar, double >( grayImage, keypoints, _descriptors );
         }
         else if ( image.depth( ) == CV_8S )
         {
-            std::cout << " < char, double > "
-                      << "\n";
+            std::cout << " < char, double > \n";
             computeDescriptors< char, double >( grayImage, keypoints, _descriptors );
         }
         else if ( image.depth( ) == CV_16U )
         {
-            std::cout << " < ushort, double > "
-                      << "\n";
+            std::cout << " < ushort, double > \n";
             computeDescriptors< ushort, double >( grayImage, keypoints, _descriptors );
         }
         else if ( image.depth( ) == CV_16S )
         {
-            std::cout << " < short, double > "
-                      << "\n";
+            std::cout << " < short, double > \n";
             computeDescriptors< short, double >( grayImage, keypoints, _descriptors );
         }
         else
@@ -498,19 +769,39 @@ SFREAK_Impl::extractDescriptor( srcMatType* pointsValue, void** ptr )
     --( *ptrScalar );
 }
 
-Mat image_color;
+float
+disOfPoints( cv::Point2f pt0, cv::Point2f pt1 )
+{
+    return std::sqrt( ( pt0.x - pt1.x ) * ( pt0.x - pt1.x )
+                      + ( pt0.y - pt1.y ) * ( pt0.y - pt1.y ) );
+}
+float
+tanAngOfPoints( cv::Point2f pt0, cv::Point2f pt1 )
+{
+    return ( pt1.y - pt0.y ) / ( pt1.x - pt0.x );
+}
+float
+sinAngOfPoints( cv::Point2f pt0, cv::Point2f pt1, float dis )
+{
+    return ( pt1.y - pt0.y ) / dis;
+}
+float
+cosAngOfPoints( cv::Point2f pt0, cv::Point2f pt1, float dis )
+{
+    return ( pt1.x - pt0.x ) / dis;
+}
+float
+angOfPoints( cv::Point2f pt0, cv::Point2f pt1 )
+{
+    return atan2( ( float )( pt1.y - pt0.y ), //
+                  ( float )( pt1.x - pt0.x ) );
+}
 
 template< typename srcMatType, typename iiMatType >
 void
 SFREAK_Impl::computeDescriptors( InputArray _image, std::vector< KeyPoint >& keypoints, OutputArray _descriptors )
 {
-
     Mat image = _image.getMat( );
-    Mat imgIntegral;
-
-    cv::cvtColor( image, image_color, cv::COLOR_GRAY2BGR );
-
-    integral( image, imgIntegral, DataType< iiMatType >::type );
 
     // used to save pattern scale index corresponding to each keypoints
     std::vector< int > kpScaleIdx( keypoints.size( ) );
@@ -522,11 +813,11 @@ SFREAK_Impl::computeDescriptors( InputArray _image, std::vector< KeyPoint >& key
 
     const float sizeCst = static_cast< float >( FREAK_NB_SCALES / ( FREAK_LOG2 * nOctaves ) );
     srcMatType pointsValue[FREAK_NB_POINTS];
+    srcMatType pointsValue2[FREAK_NB_POINTS];
 
-    int thetaIdx = 0;
-    int direction0;
-    int direction1;
-    //    std::cout << " keypoints " << keypoints.size( ) << "\n";
+    int thetaIdx   = 0;
+    int direction0 = 0;
+    int direction1 = 0;
 
     // compute the scale index corresponding to the keypoint size and
     // remove keypoints close to the border
@@ -537,15 +828,10 @@ SFREAK_Impl::computeDescriptors( InputArray _image, std::vector< KeyPoint >& key
             // Is k non-zero? If so, decrement it and continue"
             kpScaleIdx[k]
             = std::max( ( int )( std::log( keypoints[k].size / FREAK_SMALLEST_KP_SIZE ) * sizeCst + 0.5 ), 0 );
+            //            std::cout << "  " << kpScaleIdx[k] << " ";
 
             if ( kpScaleIdx[k] >= FREAK_NB_SCALES )
                 kpScaleIdx[k] = FREAK_NB_SCALES - 1;
-
-            // TODO
-            // circle( image_color, Point( keypoints[k].pt.x, keypoints[k].pt.y ), 2,
-            // Scalar( 0, 0, 255 ), 2 );
-            image_color.at< cv::Vec3b >( keypoints[k].pt.y, keypoints[k].pt.x )
-            = cv::Vec3b( 255, 0, 0 );
 
             // check if the description at this specific position and scale fits
             // inside the image
@@ -564,6 +850,7 @@ SFREAK_Impl::computeDescriptors( InputArray _image, std::vector< KeyPoint >& key
         const int scIdx = std::max( ( int )( 1.0986122886681 * sizeCst + 0.5 ), 0 );
         for ( size_t k = keypoints.size( ); k--; )
         {
+
             kpScaleIdx[k] = scIdx; // equivalent to the formule when the scale is normalized
                                    // with a constant size of
                                    // keypoints[k].size=3*SMALLEST_KP_SIZE
@@ -595,9 +882,35 @@ SFREAK_Impl::computeDescriptors( InputArray _image, std::vector< KeyPoint >& key
 
         void* ptr = descriptors.data + ( keypoints.size( ) - 1 ) * descriptors.step[0];
 
-        //        std::cout << " angle: \n";
         for ( size_t k = keypoints.size( ); k--; )
         {
+            color_rand1 = rand( ) % 256;
+            color_rand2 = rand( ) % 256;
+            color_rand3 = rand( ) % 256;
+
+            // NOTE
+            float dist     = disOfPoints( image_center, keypoints[k].pt );
+            float sinTheta = sinAngOfPoints( image_center, keypoints[k].pt, dist );
+            float cosTheta = cosAngOfPoints( image_center, keypoints[k].pt, dist );
+            // float tanTheta = tanAngOfPoints( image_center, keypoints[k].pt );
+            float theta = angOfPoints( image_center, keypoints[k].pt ) * ( 180.0 / CV_PI );
+            int index   = int( dist );
+
+            int thetaIdxTmp;
+            if ( theta < 0.f )
+                thetaIdxTmp = int( FREAK_NB_ORIENTATION * ( -theta ) * ( 1 / 360.0 ) - 0.5 );
+            else
+                thetaIdxTmp = int( FREAK_NB_ORIENTATION * ( -theta ) * ( 1 / 360.0 ) + 0.5 );
+
+            if ( thetaIdxTmp < 0 )
+                thetaIdxTmp += FREAK_NB_ORIENTATION;
+            if ( thetaIdxTmp >= FREAK_NB_ORIENTATION )
+                thetaIdxTmp -= FREAK_NB_ORIENTATION;
+
+#ifndef Table
+            thetaIdxTmp = 0;
+#endif
+
             // estimate orientation (gradient)
             if ( !orientationNormalized )
             {
@@ -610,12 +923,26 @@ SFREAK_Impl::computeDescriptors( InputArray _image, std::vector< KeyPoint >& key
                 for ( int i = FREAK_NB_POINTS; i--; )
                 {
                     pointsValue[i] = meanIntensity< srcMatType, iiMatType >( image, //
-                                                                             imgIntegral,
                                                                              keypoints[k].pt.x,
                                                                              keypoints[k].pt.y,
                                                                              kpScaleIdx[k],
                                                                              0,
                                                                              i );
+
+#ifdef Table
+
+                    pointsValue2[i]
+                    = meanIntensityTable< srcMatType, iiMatType >( image, //
+                                                                   index,
+                                                                   theta,
+                                                                   cosTheta,
+                                                                   sinTheta,
+                                                                   keypoints[k].pt.x,
+                                                                   keypoints[k].pt.y,
+                                                                   kpScaleIdx[k],
+                                                                   thetaIdxTmp,
+                                                                   i );
+#endif
                 }
                 direction0 = 0;
                 direction1 = 0;
@@ -628,15 +955,43 @@ SFREAK_Impl::computeDescriptors( InputArray _image, std::vector< KeyPoint >& key
                     direction1 += delta * ( orientationPairs[m].weight_dy ) / 2048;
                 }
 
-                keypoints[k].angle
-                = static_cast< float >( atan2( ( float )direction1, //
-                                               ( float )direction0 )
-                                        * ( 180.0 / CV_PI ) ); // estimate orientation
+                // estimate orientation
+                keypoints[k].angle = static_cast< float >( atan2( ( float )direction1, //
+                                                                  ( float )direction0 )
+                                                           * ( 180.0 / CV_PI ) );
+                std::cout << "direction " << direction1 << " " << direction0 << "\n";
+
+#ifndef Table
+                std::cout << "angle " << keypoints[k].angle << "\n";
+#endif
+////////////////////////////////////////
+#ifdef Table
+                direction0 = 0;
+                direction1 = 0;
+                for ( int m = 45; m--; )
+                {
+                    // iterate through the orientation pairs
+                    const int delta = ( pointsValue2[orientationPairs[m].i] //
+                                        - pointsValue2[orientationPairs[m].j] );
+                    direction0 += delta * ( orientationPairs[m].weight_dx ) / 2048;
+                    direction1 += delta * ( orientationPairs[m].weight_dy ) / 2048;
+                }
+
+                // estimate orientation
+                float angle = static_cast< float >( atan2( ( float )direction1, //
+                                                           ( float )direction0 )
+                                                    * ( 180.0 / CV_PI ) );
+                std::cout << "angle " << keypoints[k].angle << " " << angle << "\n";
+
+#endif
+                ////////////////////////////////////////
 
                 if ( keypoints[k].angle < 0.f )
-                    thetaIdx = int( FREAK_NB_ORIENTATION * keypoints[k].angle * ( 1 / 360.0 ) - 0.5 );
+                    thetaIdx = thetaIdxTmp
+                               + int( FREAK_NB_ORIENTATION * keypoints[k].angle * ( 1 / 360.0 ) - 0.5 );
                 else
-                    thetaIdx = int( FREAK_NB_ORIENTATION * keypoints[k].angle * ( 1 / 360.0 ) + 0.5 );
+                    thetaIdx = thetaIdxTmp
+                               + int( FREAK_NB_ORIENTATION * keypoints[k].angle * ( 1 / 360.0 ) + 0.5 );
 
                 if ( thetaIdx < 0 )
                     thetaIdx += FREAK_NB_ORIENTATION;
@@ -645,17 +1000,44 @@ SFREAK_Impl::computeDescriptors( InputArray _image, std::vector< KeyPoint >& key
                     thetaIdx -= FREAK_NB_ORIENTATION;
             }
 
-            //            std::cout << "thetaIdx " << thetaIdx << "\n";
+            const unsigned char* const mask = m_mask.ptr( )
+                                              + int( keypoints[k].pt.y ) * cam->imageWidth( )
+                                              + int( keypoints[k].pt.x );
+
             // extract descriptor at the computed orientation
-            for ( int i = FREAK_NB_POINTS; i--; )
+            if ( mask[0] > 20 )
             {
-                pointsValue[i] = meanIntensity< srcMatType, iiMatType >( image, //
-                                                                         imgIntegral,
-                                                                         keypoints[k].pt.x,
-                                                                         keypoints[k].pt.y,
-                                                                         kpScaleIdx[k],
-                                                                         thetaIdx,
-                                                                         i );
+                for ( int i = FREAK_NB_POINTS; i--; )
+                {
+                    pointsValue[i] = meanIntensity< srcMatType, iiMatType >( image, //
+                                                                             keypoints[k].pt.x,
+                                                                             keypoints[k].pt.y,
+                                                                             kpScaleIdx[k],
+                                                                             thetaIdx,
+                                                                             i );
+
+#ifdef Table
+
+                    pointsValue2[i]
+                    = meanIntensityTable< srcMatType, iiMatType >( image, //
+                                                                   index,
+                                                                   theta,
+                                                                   cosTheta,
+                                                                   sinTheta,
+                                                                   keypoints[k].pt.x,
+                                                                   keypoints[k].pt.y,
+                                                                   kpScaleIdx[k],
+                                                                   thetaIdx,
+                                                                   i );
+#endif
+                }
+            }
+            else
+            {
+                for ( int i = FREAK_NB_POINTS; i--; )
+                {
+                    pointsValue[i] = 0;
+                }
             }
 
             // Extract descriptor
@@ -674,6 +1056,33 @@ SFREAK_Impl::computeDescriptors( InputArray _image, std::vector< KeyPoint >& key
 
         for ( size_t k = keypoints.size( ); k--; )
         {
+            color_rand1 = rand( ) % 256;
+            color_rand2 = rand( ) % 256;
+            color_rand3 = rand( ) % 256;
+
+            // NOTE
+            float dist     = disOfPoints( image_center, keypoints[k].pt );
+            float sinTheta = sinAngOfPoints( image_center, keypoints[k].pt, dist );
+            float cosTheta = cosAngOfPoints( image_center, keypoints[k].pt, dist );
+            // float tanTheta = tanAngOfPoints( image_center, keypoints[k].pt );
+            float theta = angOfPoints( image_center, keypoints[k].pt ) * ( 180.0 / CV_PI );
+            int index   = int( dist );
+
+            int thetaIdxTmp;
+            if ( theta < 0.f )
+                thetaIdxTmp = int( FREAK_NB_ORIENTATION * ( -theta ) * ( 1 / 360.0 ) - 0.5 );
+            else
+                thetaIdxTmp = int( FREAK_NB_ORIENTATION * ( -theta ) * ( 1 / 360.0 ) + 0.5 );
+
+            if ( thetaIdxTmp < 0 )
+                thetaIdxTmp += FREAK_NB_ORIENTATION;
+            if ( thetaIdxTmp >= FREAK_NB_ORIENTATION )
+                thetaIdxTmp -= FREAK_NB_ORIENTATION;
+
+#ifndef Table
+            thetaIdxTmp = 0;
+#endif
+
             // estimate orientation (gradient)
             if ( !orientationNormalized )
             {
@@ -683,9 +1092,30 @@ SFREAK_Impl::computeDescriptors( InputArray _image, std::vector< KeyPoint >& key
             else
             {
                 // get the points intensity value in the un-rotated pattern
-                for ( int i        = FREAK_NB_POINTS; i--; )
-                    pointsValue[i] = meanIntensity< srcMatType, iiMatType >(
-                    image, imgIntegral, keypoints[k].pt.x, keypoints[k].pt.y, kpScaleIdx[k], 0, i );
+                for ( int i = FREAK_NB_POINTS; i--; )
+                {
+                    pointsValue[i] = meanIntensity< srcMatType, iiMatType >( image, //
+                                                                             keypoints[k].pt.x,
+                                                                             keypoints[k].pt.y,
+                                                                             kpScaleIdx[k],
+                                                                             0,
+                                                                             i );
+
+#ifdef Table
+
+                    pointsValue2[i]
+                    = meanIntensityTable< srcMatType, iiMatType >( image, //
+                                                                   index,
+                                                                   theta,
+                                                                   cosTheta,
+                                                                   sinTheta,
+                                                                   keypoints[k].pt.x,
+                                                                   keypoints[k].pt.y,
+                                                                   kpScaleIdx[k],
+                                                                   thetaIdxTmp,
+                                                                   i );
+#endif
+                }
 
                 direction0 = 0;
                 direction1 = 0;
@@ -698,13 +1128,16 @@ SFREAK_Impl::computeDescriptors( InputArray _image, std::vector< KeyPoint >& key
                     direction1 += delta * ( orientationPairs[m].weight_dy ) / 2048;
                 }
 
+                // estimate orientation
                 keypoints[k].angle = static_cast< float >(
-                atan2( ( float )direction1, ( float )direction0 ) * ( 180.0 / CV_PI ) ); // estimate orientation
+                atan2( ( float )direction1, ( float )direction0 ) * ( 180.0 / CV_PI ) );
 
                 if ( keypoints[k].angle < 0.f )
-                    thetaIdx = int( FREAK_NB_ORIENTATION * keypoints[k].angle * ( 1 / 360.0 ) - 0.5 );
+                    thetaIdx = thetaIdxTmp
+                               + int( FREAK_NB_ORIENTATION * keypoints[k].angle * ( 1 / 360.0 ) - 0.5 );
                 else
-                    thetaIdx = int( FREAK_NB_ORIENTATION * keypoints[k].angle * ( 1 / 360.0 ) + 0.5 );
+                    thetaIdx = thetaIdxTmp
+                               + int( FREAK_NB_ORIENTATION * keypoints[k].angle * ( 1 / 360.0 ) + 0.5 );
 
                 if ( thetaIdx < 0 )
                     thetaIdx += FREAK_NB_ORIENTATION;
@@ -712,11 +1145,30 @@ SFREAK_Impl::computeDescriptors( InputArray _image, std::vector< KeyPoint >& key
                 if ( thetaIdx >= FREAK_NB_ORIENTATION )
                     thetaIdx -= FREAK_NB_ORIENTATION;
             }
+
             // get the points intensity value in the rotated pattern
             for ( int i = FREAK_NB_POINTS; i--; )
             {
-                pointsValue[i] = meanIntensity< srcMatType, iiMatType >(
-                image, imgIntegral, keypoints[k].pt.x, keypoints[k].pt.y, kpScaleIdx[k], thetaIdx, i );
+                pointsValue[i] = meanIntensity< srcMatType, iiMatType >( image, //
+                                                                         keypoints[k].pt.x,
+                                                                         keypoints[k].pt.y,
+                                                                         kpScaleIdx[k],
+                                                                         thetaIdx,
+                                                                         i );
+#ifdef Table
+
+                pointsValue2[i]
+                = meanIntensityTable< srcMatType, iiMatType >( image, //
+                                                               index,
+                                                               theta,
+                                                               cosTheta,
+                                                               sinTheta,
+                                                               keypoints[k].pt.x,
+                                                               keypoints[k].pt.y,
+                                                               kpScaleIdx[k],
+                                                               thetaIdx,
+                                                               i );
+#endif
             }
 
             int cnt( 0 );
@@ -733,36 +1185,38 @@ SFREAK_Impl::computeDescriptors( InputArray _image, std::vector< KeyPoint >& key
         }
     }
 
-    cv::namedWindow( "image_color", WINDOW_NORMAL );
-    cv::imshow( "image_color", image_color );
-    // cv::imwrite( "/home/gao/1.bmp", image_color );
+    // cv::namedWindow( "image_color", WINDOW_NORMAL );
+    // cv::imshow( "image_color", image_color );
     // cv::waitKey( 0 );
+
+    // cv::imwrite( "/home/gao/1.bmp", image_color );
 }
 
 // simply take average on a square patch, not even gaussian approx
 template< typename imgType, typename iiType >
 imgType
 SFREAK_Impl::meanIntensity( InputArray _image,
-                            InputArray _integral,
                             const float kp_x,
                             const float kp_y,
                             const unsigned int scale,
                             const unsigned int rot,
                             const unsigned int point )
 {
-    Mat image = _image.getMat( ), integral = _integral.getMat( );
+    Mat image = _image.getMat( );
+
     // get point position in image
-    const PatternPoint& FreakPoint = patternLookup[scale * FREAK_NB_ORIENTATION * FREAK_NB_POINTS //
-                                                   + rot * FREAK_NB_POINTS
-                                                   + point];
-    const float xf = FreakPoint.x + kp_x;
-    const float yf = FreakPoint.y + kp_y;
+    const PatternEllipse& FreakEllip = patternLookup[scale * FREAK_NB_ORIENTATION * FREAK_NB_POINTS //
+                                                     + rot * FREAK_NB_POINTS
+                                                     + point];
+
+    const float xf = FreakEllip.pPatt->box.center.x + kp_x;
+    const float yf = FreakEllip.pPatt->box.center.y + kp_y;
 
     const int x = int( xf );
     const int y = int( yf );
 
     // get the sigma:
-    const float radius = FreakPoint.sigma;
+    const float radius = FreakEllip.pPatt->box.size.width;
 
     // calculate output:
     if ( radius < 0.5 )
@@ -772,37 +1226,31 @@ SFREAK_Impl::meanIntensity( InputArray _image,
         const int r_y   = static_cast< int >( ( yf - y ) * 1024 );
         const int r_x_1 = ( 1024 - r_x );
         const int r_y_1 = ( 1024 - r_y );
+
         unsigned int ret_val;
         // linear interpolation:
         ret_val = r_x_1 * r_y_1 * int( image.at< imgType >( y, x ) )
                   + r_x * r_y_1 * int( image.at< imgType >( y, x + 1 ) )
                   + r_x_1 * r_y * int( image.at< imgType >( y + 1, x ) )
                   + r_x * r_y * int( image.at< imgType >( y + 1, x + 1 ) );
+
         // return the rounded mean
         ret_val += 2 * 1024 * 1024;
+
         return static_cast< imgType >( ret_val / ( 4 * 1024 * 1024 ) );
     }
-
-    // expected case:
-
-    // calculate borders
-    // const int x_left   = int( xf - radius + 0.5 );
-    // const int y_top    = int( yf - radius + 0.5 );
-    // const int x_right  = int( xf + radius + 1.5 ); // integral image is 1px wider
-    // const int y_bottom = int( yf + radius + 1.5 ); // integral image is 1px higher
-
-    float _sum = 0;
-    int _num   = 0;
-
-    //    if ( false )
+    else
     {
 
-        const float xf_src = FreakPoint.x + image_center.x;
-        const float yf_src = FreakPoint.y + image_center.y;
+        float _sum = 0;
+        int _num   = 0;
+
+        const float xf_src = FreakEllip.pPatt->box.center.x + image_center.x;
+        const float yf_src = FreakEllip.pPatt->box.center.y + image_center.y;
 
         cv::CircleInt cirle( Point( xf_src, yf_src ), int( radius ) );
         //        cirle.draw( image_color, cv::Scalar( 0, 255, 255 ) );
-        std::vector< cv::Point2f > pts_circle = cirle.getCirclePoints( image_color.size( ) );
+        std::vector< cv::Point2f > pts_circle = cirle.getCirclePoints( cam->imageSize( ) );
 
         // src pt
         Eigen::Vector2d p_u00 = Eigen::Vector2d( image_center.x, image_center.y ); // 0
@@ -819,22 +1267,20 @@ SFREAK_Impl::meanIntensity( InputArray _image,
         P_center2.normalize( );
 
         // delta vector
-        double delta_angle           = acos( P_center.dot( P_center2 ) );
-        Eigen::Vector3d delta_vector = P_center.cross( P_center2 );
-        delta_vector.normalize( );
+        double delta_angle      = acos( P_center.dot( P_center2 ) );
+        Eigen::Vector3d dVector = P_center.cross( P_center2 );
+        dVector.normalize( );
 
         // rotation vector
         Eigen::Quaterniond q_v1v0( cos( 0.5 * delta_angle ),
-                                   sin( 0.5 * delta_angle ) * delta_vector( 0 ),
-                                   sin( 0.5 * delta_angle ) * delta_vector( 1 ),
-                                   sin( 0.5 * delta_angle ) * delta_vector( 2 ) );
+                                   sin( 0.5 * delta_angle ) * dVector( 0 ),
+                                   sin( 0.5 * delta_angle ) * dVector( 1 ),
+                                   sin( 0.5 * delta_angle ) * dVector( 2 ) );
 
         // Eigen::Quaterniond q_v1v1( cos( 0.5 * angle_center( 1 ) ),
         //                            sin( 0.5 * angle_center( 1 ) ) * P_center2( 0 ),
         //                            sin( 0.5 * angle_center( 1 ) ) * P_center2( 1 ),
         //                            sin( 0.5 * angle_center( 1 ) ) * P_center2( 2 ) );
-        //            std::cout << "q_v1v0 " << q_v1v0.coeffs( ).transpose( ) <<
-        //            "\n\n";
 
         // Eigen::Vector2d p_src( xf_src, yf_src );
         // Eigen::Vector3d P_src;
@@ -852,7 +1298,7 @@ SFREAK_Impl::meanIntensity( InputArray _image,
             Eigen::Vector3d P_src2;
             cam->liftSphere( p_src2, P_src2 );
 
-            Eigen::Vector3d offset_P2 = /*q_v1v1 **/ q_v1v0 * P_src2;
+            Eigen::Vector3d offset_P2 = q_v1v0 * P_src2;
 
             Eigen::Vector2d offset_p2;
             cam->spaceToPlane( offset_P2, offset_p2 );
@@ -863,7 +1309,7 @@ SFREAK_Impl::meanIntensity( InputArray _image,
 
         Ellipse ellip;
         ellip.fit( pt_ellipse );
-        // ellip.draw( image_color, cv::Scalar( 255, 255, 0 ) );
+        //        ellip.draw( image_color, cv::Scalar( 255, 255, 0 ) );
 
         cv::Rect rect = ellip.box.boundingRect( );
         for ( int row_id = 0; row_id < rect.height; ++row_id )
@@ -877,23 +1323,95 @@ SFREAK_Impl::meanIntensity( InputArray _image,
                     // image_color.at< cv::Vec3b >( pt ) = cv::Vec3b( 0, 255, 255 );
                 }
             }
+
+        iiType ret_val;
+        ret_val = iiType( _sum / _num );
+
+        return static_cast< imgType >( ret_val );
     }
+}
 
-    iiType ret_val;
+template< typename imgType, typename iiType >
+imgType
+SFREAK_Impl::meanIntensityTable( InputArray _image,
+                                 const int index,
+                                 const float theta,
+                                 const float cosTheta,
+                                 const float sinTheta,
+                                 const float kp_x,
+                                 const float kp_y,
+                                 const unsigned int scale,
+                                 const unsigned int rot,
+                                 const unsigned int point )
+{
+    Mat image = _image.getMat( );
 
-    // ret_val = integral.at< iiType >( y_bottom, x_right ); // bottom right corner
-    // ret_val -= integral.at< iiType >( y_bottom, x_left );
-    // ret_val += integral.at< iiType >( y_top, x_left );
-    // ret_val -= integral.at< iiType >( y_top, x_right );
-    //
-    // const int area = ( x_right - x_left ) * ( y_bottom - y_top );
-    //
-    // ret_val = ( ret_val + area / 2 ) / area;
+    // get point position in image
+    const PatternEllipse& FreakEllip = patternTable[index][scale * FREAK_NB_ORIENTATION * FREAK_NB_POINTS //
+                                                           + rot * FREAK_NB_POINTS
+                                                           + point];
 
-    ret_val = iiType( _sum / _num );
-    //    std::cout << "avg_v " << ret_val << " sum:" << _sum << " num:" << _num << "\n";
+    Eigen::Matrix2f R;
+    R << cosTheta, -sinTheta, sinTheta, cosTheta;
 
-    return static_cast< imgType >( ret_val );
+    Eigen::Vector2f pt_v( FreakEllip.pPatt->box.center.x, FreakEllip.pPatt->box.center.y );
+    Eigen::Vector2f pt_2 = R * pt_v;
+
+    const float xf = pt_2( 0 ) + kp_x;
+    const float yf = pt_2( 1 ) + kp_y;
+
+    const int x = int( xf );
+    const int y = int( yf );
+
+    // calculate output:
+    if ( FreakEllip.pPatt->box.size.width < 0.5 //
+         || FreakEllip.pPatt->box.size.height < 0.5 )
+    {
+        // interpolation multipliers:
+        const int r_x   = static_cast< int >( ( xf - x ) * 1024 );
+        const int r_y   = static_cast< int >( ( yf - y ) * 1024 );
+        const int r_x_1 = ( 1024 - r_x );
+        const int r_y_1 = ( 1024 - r_y );
+
+        unsigned int ret_val;
+        // linear interpolation:
+        ret_val = r_x_1 * r_y_1 * int( image.at< imgType >( y, x ) )
+                  + r_x * r_y_1 * int( image.at< imgType >( y, x + 1 ) )
+                  + r_x_1 * r_y * int( image.at< imgType >( y + 1, x ) )
+                  + r_x * r_y * int( image.at< imgType >( y + 1, x + 1 ) );
+
+        // return the rounded mean
+        ret_val += 2 * 1024 * 1024;
+
+        return static_cast< imgType >( ret_val / ( 4 * 1024 * 1024 ) );
+    }
+    else
+    {
+        float _sum = 0;
+        int _num   = 0;
+
+        // NOTE
+        Ellipse ell( cv::Point2f( xf, yf ),
+                     FreakEllip.pPatt->box.size,
+                     FreakEllip.pPatt->box.angle + theta );
+
+        cv::Rect rect = ell.box.boundingRect( );
+        for ( int row_id = 0; row_id < rect.height; ++row_id )
+            for ( int col_id = 0; col_id < rect.width; ++col_id )
+            {
+                cv::Point2f pt( col_id + rect.x, row_id + rect.y );
+                if ( ell.inside( pt ) )
+                {
+                    _sum += image.at< imgType >( pt );
+                    _num++;
+                }
+            }
+
+        iiType ret_val;
+        ret_val = iiType( _sum / _num );
+
+        return static_cast< imgType >( ret_val );
+    }
 }
 
 // pair selection algorithm from a set of training images and corresponding keypoints
@@ -995,47 +1513,6 @@ SFREAK_Impl::selectPairs( const std::vector< Mat >& images,
     return idxBestPairs;
 }
 
-// create an image showing the brisk pattern
-void
-SFREAK_Impl::drawPattern( )
-{
-    Mat pattern = Mat::zeros( 1000, 1000, CV_8UC3 ) + Scalar( 255, 255, 255 );
-    int sFac    = 500 / patternScale;
-    for ( int n = 0; n < FREAK_NB_POINTS; ++n )
-    {
-        PatternPoint& pt = patternLookup[n];
-        circle( pattern,
-                Point( pt.x * sFac, pt.y * sFac ) + Point( 500, 500 ),
-                pt.sigma * sFac,
-                Scalar( 0, 0, 255 ),
-                2 );
-        rectangle( pattern,
-                   Point( ( pt.x - pt.sigma ) * sFac, ( pt.y - pt.sigma ) * sFac ) + Point( 500, 500 ),
-                   Point( ( pt.x + pt.sigma ) * sFac, ( pt.y + pt.sigma ) * sFac ) + Point( 500, 500 ),
-                   Scalar( 0, 0, 255 ),
-                   2 );
-    }
-
-    for ( int n = 0; n < FREAK_NB_POINTS; ++n )
-    {
-        PatternPoint& pt = patternLookup[n];
-
-        circle( pattern, Point( pt.x * sFac, pt.y * sFac ) + Point( 500, 500 ), 1, Scalar( 0, 0, 0 ), 3 );
-
-        std::ostringstream oss;
-        oss << n;
-        putText( pattern,
-                 oss.str( ),
-                 Point( pt.x * sFac, pt.y * sFac ) + Point( 500, 500 ),
-                 FONT_HERSHEY_SIMPLEX,
-                 0.5,
-                 Scalar( 0, 0, 0 ),
-                 1 );
-    }
-    //    imshow( "FreakDescriptorExtractor pattern", pattern );
-    //    waitKey( 0 );
-}
-
 // -------------------------------------------------
 /* FREAK interface implementation */
 SFREAK_Impl::SFREAK_Impl( bool _orientationNormalized,
@@ -1052,6 +1529,25 @@ SFREAK_Impl::SFREAK_Impl( bool _orientationNormalized,
 , nOctaves0( 0 )
 , selectedPairs0( _selectedPairs )
 {
+}
+
+SFREAK_Impl::SFREAK_Impl( std::string cam_file,
+                          bool _orientationNormalized,
+                          bool _scaleNormalized,
+                          float _patternScale,
+                          int _nOctaves,
+                          const std::vector< int >& _selectedPairs )
+: orientationNormalized( _orientationNormalized )
+, scaleNormalized( _scaleNormalized )
+, patternScale( _patternScale )
+, nOctaves( _nOctaves )
+, extAll( false )
+, patternScale0( 0.0 )
+, nOctaves0( 0 )
+, selectedPairs0( _selectedPairs )
+{
+
+    loadCamera( cam_file );
 }
 
 SFREAK_Impl::~SFREAK_Impl( ) {}
@@ -1076,6 +1572,21 @@ SFREAK_Impl::defaultNorm( ) const
 
 Ptr< SFREAK >
 SFREAK::create( bool orientationNormalized,
+                bool scaleNormalized,
+                float patternScale,
+                int nOctaves,
+                const std::vector< int >& selectedPairs )
+{
+    return makePtr< SFREAK_Impl >( orientationNormalized, //
+                                   scaleNormalized,
+                                   patternScale,
+                                   nOctaves,
+                                   selectedPairs );
+}
+
+Ptr< SFREAK >
+SFREAK::create( std::string cam_file,
+                bool orientationNormalized,
                 bool scaleNormalized,
                 float patternScale,
                 int nOctaves,

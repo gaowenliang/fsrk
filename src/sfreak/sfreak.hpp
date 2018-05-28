@@ -68,7 +68,7 @@ class CV_EXPORTS_W SFREAK : public Feature2D
     public:
     enum
     {
-        NB_SCALES     = 64,
+        NB_SCALES     = 1, // 64
         NB_PAIRS      = 512,
         NB_ORIENPAIRS = 45
     };
@@ -81,6 +81,13 @@ class CV_EXPORTS_W SFREAK : public Feature2D
     @param selectedPairs (Optional) user defined selected pairs indexes,
      */
     static Ptr< SFREAK > create( bool orientationNormalized              = true,
+                                 bool scaleNormalized                    = true,
+                                 float patternScale                      = 22.0f,
+                                 int nOctaves                            = 4,
+                                 const std::vector< int >& selectedPairs = std::vector< int >( ) );
+
+    static Ptr< SFREAK > create( std::string cam_file,
+                                 bool orientationNormalized              = true,
                                  bool scaleNormalized                    = true,
                                  float patternScale                      = 22.0f,
                                  int nOctaves                            = 4,
@@ -163,6 +170,7 @@ class CV_EXPORTS_W SFREAK : public Feature2D
 
     public:
     cv::Point2f image_center;
+    int pixel_size;
     camera_model::CameraPtr cam;
     cv::Mat m_tableOffsets;
     cv::Mat m_mask;

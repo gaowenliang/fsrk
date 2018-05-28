@@ -88,6 +88,26 @@ sincos( int angle, float& cosval, float& sinval )
     cosval = SinTable[450 - angle];
 }
 
+cv::Ellipse::Ellipse( const cv::Ellipse& ell_in )
+: box( ell_in.box )
+{
+    axisHalfLong  = std::max( box.size.width, box.size.height ) / 2;
+    axisHalfShort = std::min( box.size.width, box.size.height ) / 2;
+
+    focalLengthHalf = std::sqrt( axisHalfLong * axisHalfLong - axisHalfShort * axisHalfShort );
+
+    double _angle;
+    if ( box.size.width > box.size.height )
+        _angle = CV_PI - box.angle * CV_PI / 180.;
+    else
+        _angle = CV_PI / 2 - box.angle * CV_PI / 180.;
+
+    focalPoint0 = cv::Point2f( box.center.x + focalLengthHalf * ( float )cos( _angle ),
+                               box.center.y - focalLengthHalf * ( float )sin( _angle ) );
+    focalPoint1 = cv::Point2f( box.center.x - focalLengthHalf * ( float )cos( _angle ),
+                               box.center.y + focalLengthHalf * ( float )sin( _angle ) );
+}
+
 cv::Ellipse::Ellipse( const cv::RectRot& _box )
 : box( _box )
 {

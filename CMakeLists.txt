@@ -69,4 +69,7 @@ target_link_libraries(calcCfgSagast dw ${catkin_LIBRARIES}  ${catkin_LIBRARIES} 
 add_executable(run_sfreak    src/run_sfreak.cpp    ${sfreak_LIB_SOURCE_FILES}  ${agast_LIB_SOURCE_FILES})
 target_link_libraries(run_sfreak dw ${catkin_LIBRARIES}  ${catkin_LIBRARIES}  ${OpenCV_LIBS})
 
+add_executable(test_ell    src/test_ell.cpp    ${sfreak_LIB_SOURCE_FILES}  ${agast_LIB_SOURCE_FILES})
+target_link_libraries(test_ell dw ${catkin_LIBRARIES}  ${catkin_LIBRARIES}  ${OpenCV_LIBS})
+
 

@@ -2,6 +2,7 @@
 #define ELLIPSE_H
 
 #include "rectrot.h"
+#include <boost/shared_ptr.hpp>
 #include <iostream>
 #include <opencv2/core.hpp>
 #include <opencv2/opencv.hpp>
@@ -20,6 +21,7 @@ class Ellipse
 {
     public:
     Ellipse( ) {}
+    Ellipse( const Ellipse& ell_in );
     Ellipse( const cv::RectRot& _box );
     Ellipse( const Point2f& center, const Size2f& size, float angle );
 
@@ -53,5 +55,7 @@ class Ellipse
 
     cv::RectRot box;
 };
+typedef boost::shared_ptr< Ellipse > EllipsePtr;
+typedef boost::shared_ptr< const Ellipse > EllipseConstPtr;
 }
 #endif // ELLIPSE_H
