@@ -163,9 +163,7 @@ class SFREAK_Impl : public SFREAK
     // look-up table for the pattern points
     // (position+sigma of all points at all
     // scales and orientation)
-    std::vector< PatternEllipse > patternLookup;
     std::vector< std::vector< PatternEllipse > > patternTable;
-    //    std::vector< PatternEllipse > patternLookup;
 
     int patternSizes[NB_SCALES]; // size of the pattern at a specific scale (used to check
                                  // if a point is within image boundaries)
@@ -232,10 +230,10 @@ struct sortMean
     }
 };
 
-int color_rand1;
-int color_rand2;
-int color_rand3;
-Mat image_color;
+// int color_rand1;
+// int color_rand2;
+// int color_rand3;
+// Mat image_color;
 
 // create an image showing the brisk pattern
 void
@@ -245,7 +243,7 @@ SFREAK_Impl::drawPattern( )
     int sFac    = 500 / patternScale;
     for ( int n = 0; n < FREAK_NB_POINTS; ++n )
     {
-        PatternEllipse& pt = patternLookup[n];
+        PatternEllipse& pt = patternTable[0][n];
         circle( pattern,
                 Point( pt.pPatt->box.center.x * sFac, pt.pPatt->box.center.y * sFac ) + Point( 500, 500 ),
                 pt.pPatt->box.size.width * sFac,
@@ -285,7 +283,6 @@ SFREAK_Impl::buildPattern( )
 {
     if ( patternScale == patternScale0 //
          && nOctaves == nOctaves0
-         && !patternLookup.empty( )
          && !patternTable.empty( ) )
         return;
 
@@ -309,9 +306,6 @@ SFREAK_Impl::buildPattern( )
     pixel_size = std::max( std::max( pixels_size[0], pixels_size[1] ),
                            std::max( pixels_size[2], pixels_size[3] ) );
     std::cout << "pixel_size " << pixel_size << "\n";
-
-    patternLookup.resize( FREAK_NB_SCALES * FREAK_NB_ORIENTATION * FREAK_NB_POINTS );
-    std::cout << "[#Debug] patternLookup size: " << patternLookup.size( ) << "\n\n\n";
 
 #ifdef Table
     patternTable.resize( pixel_size );
@@ -359,11 +353,12 @@ SFREAK_Impl::buildPattern( )
                               radius[6] / 2.0 };
 #ifdef Table
 
+    // fill the lookup table
     for ( int index = 0; index < pixel_size; ++index )
     {
-        color_rand1 = rand( ) % 256;
-        color_rand2 = rand( ) % 256;
-        color_rand3 = rand( ) % 256;
+        // color_rand1 = rand( ) % 256;
+        // color_rand2 = rand( ) % 256;
+        // color_rand3 = rand( ) % 256;
 
         for ( int scaleIdx = 0; scaleIdx < FREAK_NB_SCALES; ++scaleIdx )
         {
@@ -465,8 +460,9 @@ SFREAK_Impl::buildPattern( )
                         ell.pPatt = ellip;
 
                         // NOTE
-                        if ( index % 15 == 0 )
-                            ellip_fit.draw( image_color, cv::Scalar( color_rand1, color_rand2, color_rand3 ) );
+                        //   if ( index % 15 == 0 )
+                        //       ellip_fit.draw( image_color, cv::Scalar( color_rand1,
+                        //       color_rand2, color_rand3 ) );
 
                         // adapt the sizeList if necessary
                         const int sizeMax
@@ -486,70 +482,6 @@ SFREAK_Impl::buildPattern( )
 
     // cv::imshow( "image_color_src", image_color );
     // cv::waitKey( 0 );
-
-    // fill the lookup table
-    for ( int scaleIdx = 0; scaleIdx < FREAK_NB_SCALES; ++scaleIdx )
-    {
-        patternSizes[scaleIdx] = 0; // proper initialization
-
-        // scale of the pattern, scaleStep ^ scaleIdx
-        scalingFactor = std::pow( scaleStep, scaleIdx );
-        //        std::cout << "scalingFactor: " << scalingFactor << "\n";
-
-        for ( int orientationIdx = 0; orientationIdx < FREAK_NB_ORIENTATION; ++orientationIdx )
-        {
-            // orientation of the pattern
-            // double full_angle = 60.0 * CV_PI / 180.0;
-            //                    theta = double( orientationIdx ) * full_angle /
-            //                    double( FREAK_NB_ORIENTATION );
-            theta = double( orientationIdx ) * 2 * CV_PI / double( FREAK_NB_ORIENTATION );
-
-            int pointIdx = 0;
-
-            PatternEllipse* patternLookupPtr = &patternLookup[0];
-
-            // std::cout << "\n theta  " << theta << "\n";
-            // 8 groups
-            for ( size_t i = 0; i < 8; ++i )
-            {
-                // 6 circles per group
-                for ( int k = 0; k < n[i]; ++k )
-                {
-                    // orientation offset so that groups of points
-                    // on each circles are staggered
-                    beta  = CV_PI / n[i] * ( i % 2 );
-                    alpha = double( k ) * 2 * CV_PI / double( n[i] ) + beta + theta;
-
-                    // std::cout << "beta  " << beta << "\n";
-                    // std::cout << "alpha " << alpha << "\n";
-                    // add the point to the look-up table
-                    PatternEllipse& ell = patternLookupPtr[scaleIdx * FREAK_NB_ORIENTATION * FREAK_NB_POINTS //
-                                                           + orientationIdx * FREAK_NB_POINTS
-                                                           + pointIdx];
-
-                    EllipsePtr ellip( new Ellipse );
-                    ell.pPatt = ellip;
-
-                    ell.pPatt->box.center.x
-                    = static_cast< float >( radius[i] * cos( alpha ) * scalingFactor * patternScale );
-                    ell.pPatt->box.center.y
-                    = static_cast< float >( radius[i] * sin( alpha ) * scalingFactor * patternScale );
-                    ell.pPatt->box.size.width
-                    = static_cast< float >( sigma[i] * scalingFactor * patternScale );
-
-                    // adapt the sizeList if necessary
-                    const int sizeMax
-                    = static_cast< int >( ceil( ( radius[i] + sigma[i] ) * scalingFactor * patternScale ) )
-                      + 1;
-
-                    if ( patternSizes[scaleIdx] < sizeMax )
-                        patternSizes[scaleIdx] = sizeMax;
-
-                    ++pointIdx;
-                }
-            }
-        }
-    }
 
     // build the list of orientation pairs
     // clang-format off
@@ -602,37 +534,17 @@ SFREAK_Impl::buildPattern( )
 
     for ( unsigned m = FREAK_NB_ORIENPAIRS; m--; )
     {
-        const float dx = patternLookup[orientationPairs[m].i].pPatt->box.center.x
-                         - patternLookup[orientationPairs[m].j].pPatt->box.center.x;
+        const float dx = patternTable[0][orientationPairs[m].i].pPatt->box.center.x
+                         - patternTable[0][orientationPairs[m].j].pPatt->box.center.x;
 
-        const float dy = patternLookup[orientationPairs[m].i].pPatt->box.center.y
-                         - patternLookup[orientationPairs[m].j].pPatt->box.center.y;
+        const float dy = patternTable[0][orientationPairs[m].i].pPatt->box.center.y
+                         - patternTable[0][orientationPairs[m].j].pPatt->box.center.y;
 
         const float norm_sq = ( dx * dx + dy * dy );
 
         orientationPairs[m].weight_dx = int( ( dx / ( norm_sq ) ) * 4096.0 + 0.5 );
         orientationPairs[m].weight_dy = int( ( dy / ( norm_sq ) ) * 4096.0 + 0.5 );
     }
-
-#ifdef Table2
-
-    for ( int index = 0; index < pixel_size; ++index )
-    {
-        for ( unsigned m = FREAK_NB_ORIENPAIRS; m--; )
-        {
-            const float dx = patternTable[index][orientationPairs[m].i].pPatt->box.center.x
-                             - patternTable[index][orientationPairs[m].j].pPatt->box.center.x;
-
-            const float dy = patternTable[index][orientationPairs[m].i].pPatt->box.center.y
-                             - patternTable[index][orientationPairs[m].j].pPatt->box.center.y;
-
-            const float norm_sq = ( dx * dx + dy * dy );
-
-            orientationPairs[m].weight_dx = int( ( dx / ( norm_sq ) ) * 4096.0 + 0.5 );
-            orientationPairs[m].weight_dy = int( ( dy / ( norm_sq ) ) * 4096.0 + 0.5 );
-        }
-    }
-#endif
 
     // build the list of description pairs
     std::vector< DescriptionPair > allPairs;
@@ -683,7 +595,7 @@ SFREAK_Impl::compute( InputArray _image, std::vector< KeyPoint >& keypoints, Out
     if ( keypoints.empty( ) )
         return;
 
-    cv::cvtColor( image, image_color, cv::COLOR_GRAY2BGR );
+    // cv::cvtColor( image, image_color, cv::COLOR_GRAY2BGR );
 
     ( ( SFREAK_Impl* )this )->buildPattern( );
 
@@ -812,7 +724,6 @@ SFREAK_Impl::computeDescriptors( InputArray _image, std::vector< KeyPoint >& key
     const std::vector< cv::KeyPoint >::iterator kpBegin = keypoints.begin( );
 
     const float sizeCst = static_cast< float >( FREAK_NB_SCALES / ( FREAK_LOG2 * nOctaves ) );
-    srcMatType pointsValue[FREAK_NB_POINTS];
     srcMatType pointsValue2[FREAK_NB_POINTS];
 
     int thetaIdx   = 0;
@@ -884,11 +795,10 @@ SFREAK_Impl::computeDescriptors( InputArray _image, std::vector< KeyPoint >& key
 
         for ( size_t k = keypoints.size( ); k--; )
         {
-            std::cout << "\n";
 
-            color_rand1 = rand( ) % 256;
-            color_rand2 = rand( ) % 256;
-            color_rand3 = rand( ) % 256;
+            //  color_rand1 = rand( ) % 256;
+            //  color_rand2 = rand( ) % 256;
+            //  color_rand3 = rand( ) % 256;
 
             // NOTE
             float dist     = disOfPoints( image_center, keypoints[k].pt );
@@ -916,25 +826,9 @@ SFREAK_Impl::computeDescriptors( InputArray _image, std::vector< KeyPoint >& key
                 if ( thetaIdxTmp >= FREAK_NB_ORIENTATION )
                     thetaIdxTmp -= FREAK_NB_ORIENTATION;
 
-#ifndef Table
-                thetaIdxTmp = 0;
-#endif
-
                 // get the points intensity value in the un-rotated pattern
                 for ( int i = FREAK_NB_POINTS; i--; )
                 {
-#ifndef Table
-
-                    pointsValue[i] = meanIntensity< srcMatType,
-                                                    iiMatType >( image, //
-                                                                 keypoints[k].pt.x,
-                                                                 keypoints[k].pt.y,
-                                                                 kpScaleIdx[k],
-                                                                 0,
-                                                                 i );
-
-#else
-
                     pointsValue2[i]
                     = meanIntensityTable< srcMatType, iiMatType >( image, //
                                                                    index,
@@ -946,31 +840,8 @@ SFREAK_Impl::computeDescriptors( InputArray _image, std::vector< KeyPoint >& key
                                                                    kpScaleIdx[k],
                                                                    thetaIdxTmp,
                                                                    i );
-
-//                    std::cout << int( pointsValue2[i] ) << "\n";
-
-#endif
-                }
-#ifndef Table
-                direction0 = 0;
-                direction1 = 0;
-                for ( int m = 45; m--; )
-                {
-                    // iterate through the orientation pairs
-                    const int delta = ( pointsValue[orientationPairs[m].i] //
-                                        - pointsValue[orientationPairs[m].j] );
-                    direction0 += delta * ( orientationPairs[m].weight_dx ) / 2048;
-                    direction1 += delta * ( orientationPairs[m].weight_dy ) / 2048;
                 }
 
-                // estimate orientation
-                keypoints[k].angle = static_cast< float >( atan2( ( float )direction1, //
-                                                                  ( float )direction0 )
-                                                           * ( 180.0 / CV_PI ) );
-                std::cout << "angle " << keypoints[k].angle << "\n";
-#endif
-////////////////////////////////////////
-#ifdef Table
                 direction0 = 0;
                 direction1 = 0;
                 for ( int m = 45; m--; )
@@ -986,13 +857,6 @@ SFREAK_Impl::computeDescriptors( InputArray _image, std::vector< KeyPoint >& key
                 keypoints[k].angle = static_cast< float >( atan2( ( float )direction1, //
                                                                   ( float )direction0 )
                                                            * ( 180.0 / CV_PI ) );
-//                float angle_pt = angle + theta;
-
-//                std::cout << "angle " << keypoints[k].angle << " " << angle_pt << " " <<
-//                theta << "\n";
-
-#endif
-                ////////////////////////////////////////
 
                 if ( keypoints[k].angle < 0.f )
                     thetaIdx
@@ -1017,17 +881,6 @@ SFREAK_Impl::computeDescriptors( InputArray _image, std::vector< KeyPoint >& key
             {
                 for ( int i = FREAK_NB_POINTS; i--; )
                 {
-#ifndef Table
-
-                    pointsValue[i] = meanIntensity< srcMatType, iiMatType >( image, //
-                                                                             keypoints[k].pt.x,
-                                                                             keypoints[k].pt.y,
-                                                                             kpScaleIdx[k],
-                                                                             thetaIdx,
-                                                                             i );
-
-#else
-
                     pointsValue2[i]
                     = meanIntensityTable< srcMatType, iiMatType >( image, //
                                                                    index,
@@ -1039,7 +892,6 @@ SFREAK_Impl::computeDescriptors( InputArray _image, std::vector< KeyPoint >& key
                                                                    kpScaleIdx[k],
                                                                    thetaIdx,
                                                                    i );
-#endif
                 }
             }
             else
@@ -1202,9 +1054,9 @@ pointsValue[orientationPairs[m].j] );
         }
     }*/
 
-    cv::namedWindow( "image_color", WINDOW_NORMAL );
-    cv::imshow( "image_color", image_color );
-    cv::waitKey( 0 );
+    // cv::namedWindow( "image_color", WINDOW_NORMAL );
+    // cv::imshow( "image_color", image_color );
+    // cv::waitKey( 0 );
 
     // cv::imwrite( "/home/gao/1.bmp", image_color );
 }
@@ -1222,9 +1074,9 @@ SFREAK_Impl::meanIntensity( InputArray _image,
     Mat image = _image.getMat( );
 
     // get point position in image
-    const PatternEllipse& FreakEllip = patternLookup[scale * FREAK_NB_ORIENTATION * FREAK_NB_POINTS //
-                                                     + rot * FREAK_NB_POINTS
-                                                     + point];
+    const PatternEllipse& FreakEllip = patternTable[0][scale * FREAK_NB_ORIENTATION * FREAK_NB_POINTS //
+                                                       + rot * FREAK_NB_POINTS
+                                                       + point];
 
     const float xf = FreakEllip.pPatt->box.center.x + kp_x;
     const float yf = FreakEllip.pPatt->box.center.y + kp_y;
@@ -1411,7 +1263,7 @@ SFREAK_Impl::meanIntensityTable( InputArray _image,
         Ellipse ell( cv::Point2f( xf, yf ),
                      FreakEllip.pPatt->box.size,
                      FreakEllip.pPatt->box.angle + theta );
-        ell.draw( image_color, cv::Scalar( 255, 255, 0 ) );
+        // ell.draw( image_color, cv::Scalar( color_rand1, color_rand2, color_rand3 ) );
 
         cv::Rect rect = ell.box.boundingRect( );
         for ( int row_id = 0; row_id < rect.height; ++row_id )
