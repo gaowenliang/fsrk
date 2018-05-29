@@ -45,7 +45,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-//#define Table
+#define Table
 
 namespace cv
 {
@@ -176,7 +176,7 @@ class SFREAK_Impl : public SFREAK
 static const double FREAK_LOG2 = 0.693147180559945;
 // static const int FREAK_NB_ORIENTATION = 1; // 180
 // static const int FREAK_NB_POINTS      = 43;
-#define FREAK_NB_ORIENTATION 6 // 180
+#define FREAK_NB_ORIENTATION 180 // 180
 #define FREAK_NB_POINTS 43
 static const int FREAK_SMALLEST_KP_SIZE = 7; // smallest size of keypoints
 static const int FREAK_NB_SCALES        = SFREAK::NB_SCALES;
@@ -375,7 +375,7 @@ SFREAK_Impl::buildPattern( )
             for ( int orientationIdx = 0; orientationIdx < FREAK_NB_ORIENTATION; ++orientationIdx )
             {
                 // orientation of the pattern
-                double full_angle = 60.0 * CV_PI / 180.0;
+                // double full_angle = 60.0 * CV_PI / 180.0;
                 //                    theta = double( orientationIdx ) * full_angle /
                 //                    double( FREAK_NB_ORIENTATION );
                 theta = double( orientationIdx ) * 2 * CV_PI / double( FREAK_NB_ORIENTATION );
@@ -499,7 +499,7 @@ SFREAK_Impl::buildPattern( )
         for ( int orientationIdx = 0; orientationIdx < FREAK_NB_ORIENTATION; ++orientationIdx )
         {
             // orientation of the pattern
-            double full_angle = 60.0 * CV_PI / 180.0;
+            // double full_angle = 60.0 * CV_PI / 180.0;
             //                    theta = double( orientationIdx ) * full_angle /
             //                    double( FREAK_NB_ORIENTATION );
             theta = double( orientationIdx ) * 2 * CV_PI / double( FREAK_NB_ORIENTATION );
@@ -614,7 +614,7 @@ SFREAK_Impl::buildPattern( )
         orientationPairs[m].weight_dy = int( ( dy / ( norm_sq ) ) * 4096.0 + 0.5 );
     }
 
-#ifdef Table
+#ifdef Table2
 
     for ( int index = 0; index < pixel_size; ++index )
     {
@@ -884,6 +884,8 @@ SFREAK_Impl::computeDescriptors( InputArray _image, std::vector< KeyPoint >& key
 
         for ( size_t k = keypoints.size( ); k--; )
         {
+            std::cout << "\n";
+
             color_rand1 = rand( ) % 256;
             color_rand2 = rand( ) % 256;
             color_rand3 = rand( ) % 256;
@@ -892,24 +894,8 @@ SFREAK_Impl::computeDescriptors( InputArray _image, std::vector< KeyPoint >& key
             float dist     = disOfPoints( image_center, keypoints[k].pt );
             float sinTheta = sinAngOfPoints( image_center, keypoints[k].pt, dist );
             float cosTheta = cosAngOfPoints( image_center, keypoints[k].pt, dist );
-            // float tanTheta = tanAngOfPoints( image_center, keypoints[k].pt );
             float theta = angOfPoints( image_center, keypoints[k].pt ) * ( 180.0 / CV_PI );
             int index   = int( dist );
-
-            int thetaIdxTmp;
-            if ( theta < 0.f )
-                thetaIdxTmp = int( FREAK_NB_ORIENTATION * ( -theta ) * ( 1 / 360.0 ) - 0.5 );
-            else
-                thetaIdxTmp = int( FREAK_NB_ORIENTATION * ( -theta ) * ( 1 / 360.0 ) + 0.5 );
-
-            if ( thetaIdxTmp < 0 )
-                thetaIdxTmp += FREAK_NB_ORIENTATION;
-            if ( thetaIdxTmp >= FREAK_NB_ORIENTATION )
-                thetaIdxTmp -= FREAK_NB_ORIENTATION;
-
-#ifndef Table
-            thetaIdxTmp = 0;
-#endif
 
             // estimate orientation (gradient)
             if ( !orientationNormalized )
@@ -919,17 +905,35 @@ SFREAK_Impl::computeDescriptors( InputArray _image, std::vector< KeyPoint >& key
             }
             else
             {
+                int thetaIdxTmp;
+                if ( theta < 0.f )
+                    thetaIdxTmp = int( FREAK_NB_ORIENTATION * ( -theta ) * ( 1 / 360.0 ) - 0.5 );
+                else
+                    thetaIdxTmp = int( FREAK_NB_ORIENTATION * ( -theta ) * ( 1 / 360.0 ) + 0.5 );
+
+                if ( thetaIdxTmp < 0 )
+                    thetaIdxTmp += FREAK_NB_ORIENTATION;
+                if ( thetaIdxTmp >= FREAK_NB_ORIENTATION )
+                    thetaIdxTmp -= FREAK_NB_ORIENTATION;
+
+#ifndef Table
+                thetaIdxTmp = 0;
+#endif
+
                 // get the points intensity value in the un-rotated pattern
                 for ( int i = FREAK_NB_POINTS; i--; )
                 {
-                    pointsValue[i] = meanIntensity< srcMatType, iiMatType >( image, //
-                                                                             keypoints[k].pt.x,
-                                                                             keypoints[k].pt.y,
-                                                                             kpScaleIdx[k],
-                                                                             0,
-                                                                             i );
+#ifndef Table
 
-#ifdef Table
+                    pointsValue[i] = meanIntensity< srcMatType,
+                                                    iiMatType >( image, //
+                                                                 keypoints[k].pt.x,
+                                                                 keypoints[k].pt.y,
+                                                                 kpScaleIdx[k],
+                                                                 0,
+                                                                 i );
+
+#else
 
                     pointsValue2[i]
                     = meanIntensityTable< srcMatType, iiMatType >( image, //
@@ -942,8 +946,12 @@ SFREAK_Impl::computeDescriptors( InputArray _image, std::vector< KeyPoint >& key
                                                                    kpScaleIdx[k],
                                                                    thetaIdxTmp,
                                                                    i );
+
+//                    std::cout << int( pointsValue2[i] ) << "\n";
+
 #endif
                 }
+#ifndef Table
                 direction0 = 0;
                 direction1 = 0;
                 for ( int m = 45; m--; )
@@ -959,9 +967,6 @@ SFREAK_Impl::computeDescriptors( InputArray _image, std::vector< KeyPoint >& key
                 keypoints[k].angle = static_cast< float >( atan2( ( float )direction1, //
                                                                   ( float )direction0 )
                                                            * ( 180.0 / CV_PI ) );
-                std::cout << "direction " << direction1 << " " << direction0 << "\n";
-
-#ifndef Table
                 std::cout << "angle " << keypoints[k].angle << "\n";
 #endif
 ////////////////////////////////////////
@@ -978,20 +983,23 @@ SFREAK_Impl::computeDescriptors( InputArray _image, std::vector< KeyPoint >& key
                 }
 
                 // estimate orientation
-                float angle = static_cast< float >( atan2( ( float )direction1, //
-                                                           ( float )direction0 )
-                                                    * ( 180.0 / CV_PI ) );
-                std::cout << "angle " << keypoints[k].angle << " " << angle << "\n";
+                keypoints[k].angle = static_cast< float >( atan2( ( float )direction1, //
+                                                                  ( float )direction0 )
+                                                           * ( 180.0 / CV_PI ) );
+//                float angle_pt = angle + theta;
+
+//                std::cout << "angle " << keypoints[k].angle << " " << angle_pt << " " <<
+//                theta << "\n";
 
 #endif
                 ////////////////////////////////////////
 
                 if ( keypoints[k].angle < 0.f )
-                    thetaIdx = thetaIdxTmp
-                               + int( FREAK_NB_ORIENTATION * keypoints[k].angle * ( 1 / 360.0 ) - 0.5 );
+                    thetaIdx
+                    = int( FREAK_NB_ORIENTATION * ( -theta + keypoints[k].angle ) * ( 1 / 360.0 ) - 0.5 );
                 else
-                    thetaIdx = thetaIdxTmp
-                               + int( FREAK_NB_ORIENTATION * keypoints[k].angle * ( 1 / 360.0 ) + 0.5 );
+                    thetaIdx
+                    = int( FREAK_NB_ORIENTATION * ( -theta + keypoints[k].angle ) * ( 1 / 360.0 ) + 0.5 );
 
                 if ( thetaIdx < 0 )
                     thetaIdx += FREAK_NB_ORIENTATION;
@@ -1009,6 +1017,8 @@ SFREAK_Impl::computeDescriptors( InputArray _image, std::vector< KeyPoint >& key
             {
                 for ( int i = FREAK_NB_POINTS; i--; )
                 {
+#ifndef Table
+
                     pointsValue[i] = meanIntensity< srcMatType, iiMatType >( image, //
                                                                              keypoints[k].pt.x,
                                                                              keypoints[k].pt.y,
@@ -1016,7 +1026,7 @@ SFREAK_Impl::computeDescriptors( InputArray _image, std::vector< KeyPoint >& key
                                                                              thetaIdx,
                                                                              i );
 
-#ifdef Table
+#else
 
                     pointsValue2[i]
                     = meanIntensityTable< srcMatType, iiMatType >( image, //
@@ -1036,15 +1046,16 @@ SFREAK_Impl::computeDescriptors( InputArray _image, std::vector< KeyPoint >& key
             {
                 for ( int i = FREAK_NB_POINTS; i--; )
                 {
-                    pointsValue[i] = 0;
+                    pointsValue2[i] = 0;
                 }
             }
 
             // Extract descriptor
-            extractDescriptor< srcMatType >( pointsValue, &ptr );
+            extractDescriptor< srcMatType >( pointsValue2, &ptr );
         }
         //        std::cout << "\n";
     }
+    /*
     else // extract all possible comparisons for selection
     {
         _descriptors.create( ( int )keypoints.size( ), 128, CV_8U );
@@ -1064,24 +1075,8 @@ SFREAK_Impl::computeDescriptors( InputArray _image, std::vector< KeyPoint >& key
             float dist     = disOfPoints( image_center, keypoints[k].pt );
             float sinTheta = sinAngOfPoints( image_center, keypoints[k].pt, dist );
             float cosTheta = cosAngOfPoints( image_center, keypoints[k].pt, dist );
-            // float tanTheta = tanAngOfPoints( image_center, keypoints[k].pt );
             float theta = angOfPoints( image_center, keypoints[k].pt ) * ( 180.0 / CV_PI );
             int index   = int( dist );
-
-            int thetaIdxTmp;
-            if ( theta < 0.f )
-                thetaIdxTmp = int( FREAK_NB_ORIENTATION * ( -theta ) * ( 1 / 360.0 ) - 0.5 );
-            else
-                thetaIdxTmp = int( FREAK_NB_ORIENTATION * ( -theta ) * ( 1 / 360.0 ) + 0.5 );
-
-            if ( thetaIdxTmp < 0 )
-                thetaIdxTmp += FREAK_NB_ORIENTATION;
-            if ( thetaIdxTmp >= FREAK_NB_ORIENTATION )
-                thetaIdxTmp -= FREAK_NB_ORIENTATION;
-
-#ifndef Table
-            thetaIdxTmp = 0;
-#endif
 
             // estimate orientation (gradient)
             if ( !orientationNormalized )
@@ -1091,9 +1086,27 @@ SFREAK_Impl::computeDescriptors( InputArray _image, std::vector< KeyPoint >& key
             }
             else
             {
+                int thetaIdxTmp;
+                if ( theta < 0.f )
+                    thetaIdxTmp = int( FREAK_NB_ORIENTATION * ( -theta ) * ( 1 / 360.0 ) -
+0.5 );
+                else
+                    thetaIdxTmp = int( FREAK_NB_ORIENTATION * ( -theta ) * ( 1 / 360.0 ) +
+0.5 );
+
+                if ( thetaIdxTmp < 0 )
+                    thetaIdxTmp += FREAK_NB_ORIENTATION;
+                if ( thetaIdxTmp >= FREAK_NB_ORIENTATION )
+                    thetaIdxTmp -= FREAK_NB_ORIENTATION;
+
+#ifndef Table
+                thetaIdxTmp = 0;
+#endif
+
                 // get the points intensity value in the un-rotated pattern
                 for ( int i = FREAK_NB_POINTS; i--; )
                 {
+#ifndef Table
                     pointsValue[i] = meanIntensity< srcMatType, iiMatType >( image, //
                                                                              keypoints[k].pt.x,
                                                                              keypoints[k].pt.y,
@@ -1101,7 +1114,7 @@ SFREAK_Impl::computeDescriptors( InputArray _image, std::vector< KeyPoint >& key
                                                                              0,
                                                                              i );
 
-#ifdef Table
+#else
 
                     pointsValue2[i]
                     = meanIntensityTable< srcMatType, iiMatType >( image, //
@@ -1123,7 +1136,8 @@ SFREAK_Impl::computeDescriptors( InputArray _image, std::vector< KeyPoint >& key
                 {
                     // iterate through the orientation pairs
                     const int delta
-                    = ( pointsValue[orientationPairs[m].i] - pointsValue[orientationPairs[m].j] );
+                    = ( pointsValue[orientationPairs[m].i] -
+pointsValue[orientationPairs[m].j] );
                     direction0 += delta * ( orientationPairs[m].weight_dx ) / 2048;
                     direction1 += delta * ( orientationPairs[m].weight_dy ) / 2048;
                 }
@@ -1133,11 +1147,13 @@ SFREAK_Impl::computeDescriptors( InputArray _image, std::vector< KeyPoint >& key
                 atan2( ( float )direction1, ( float )direction0 ) * ( 180.0 / CV_PI ) );
 
                 if ( keypoints[k].angle < 0.f )
-                    thetaIdx = thetaIdxTmp
-                               + int( FREAK_NB_ORIENTATION * keypoints[k].angle * ( 1 / 360.0 ) - 0.5 );
+                    thetaIdx
+                    = int( FREAK_NB_ORIENTATION * ( -theta + keypoints[k].angle ) * ( 1 /
+360.0 ) - 0.5 );
                 else
-                    thetaIdx = thetaIdxTmp
-                               + int( FREAK_NB_ORIENTATION * keypoints[k].angle * ( 1 / 360.0 ) + 0.5 );
+                    thetaIdx
+                    = int( FREAK_NB_ORIENTATION * ( -theta + keypoints[k].angle ) * ( 1 /
+360.0 ) + 0.5 );
 
                 if ( thetaIdx < 0 )
                     thetaIdx += FREAK_NB_ORIENTATION;
@@ -1149,13 +1165,14 @@ SFREAK_Impl::computeDescriptors( InputArray _image, std::vector< KeyPoint >& key
             // get the points intensity value in the rotated pattern
             for ( int i = FREAK_NB_POINTS; i--; )
             {
+#ifndef Table
                 pointsValue[i] = meanIntensity< srcMatType, iiMatType >( image, //
                                                                          keypoints[k].pt.x,
                                                                          keypoints[k].pt.y,
                                                                          kpScaleIdx[k],
                                                                          thetaIdx,
                                                                          i );
-#ifdef Table
+#else
 
                 pointsValue2[i]
                 = meanIntensityTable< srcMatType, iiMatType >( image, //
@@ -1183,11 +1200,11 @@ SFREAK_Impl::computeDescriptors( InputArray _image, std::vector< KeyPoint >& key
             }
             --ptr;
         }
-    }
+    }*/
 
-    // cv::namedWindow( "image_color", WINDOW_NORMAL );
-    // cv::imshow( "image_color", image_color );
-    // cv::waitKey( 0 );
+    cv::namedWindow( "image_color", WINDOW_NORMAL );
+    cv::imshow( "image_color", image_color );
+    cv::waitKey( 0 );
 
     // cv::imwrite( "/home/gao/1.bmp", image_color );
 }
@@ -1394,6 +1411,7 @@ SFREAK_Impl::meanIntensityTable( InputArray _image,
         Ellipse ell( cv::Point2f( xf, yf ),
                      FreakEllip.pPatt->box.size,
                      FreakEllip.pPatt->box.angle + theta );
+        ell.draw( image_color, cv::Scalar( 255, 255, 0 ) );
 
         cv::Rect rect = ell.box.boundingRect( );
         for ( int row_id = 0; row_id < rect.height; ++row_id )

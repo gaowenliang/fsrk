@@ -42,10 +42,10 @@ void
 On_mouse( int event, int x, int y, int flags, void* );
 
 void
-drawImageCalc( Mat image_color, Point pt );
+drawImageCalc( Mat image_color, Point pt, float angle );
 
 void
-drawImageTable( cv::Mat image_color, cv::Point pt );
+drawImageTable( cv::Mat image_color, cv::Point pt, float angle );
 
 void
 buildTable( camera_model::CameraPtr cam );
@@ -121,18 +121,20 @@ On_mouse( int event, int x, int y, int flags, void* )
     color_rand2 = rand( ) % 256;
     color_rand3 = rand( ) % 256;
 
-    drawImageCalc( image_color, pt );
-    drawImageTable( image_color2, pt );
+    float angle = 30;
+
+    drawImageCalc( image_color, pt, angle );
+    drawImageTable( image_color2, pt, angle );
 
     cv::imshow( WINDOW_NAME, image_color );
     cv::imshow( WINDOW_NAME2, image_color2 );
 }
 
-#define FREAK_NB_ORIENTATION 18
+#define FREAK_NB_ORIENTATION 36
 #define FREAK_NB_POINTS 43
 
 void
-drawImageTable( cv::Mat image_color, cv::Point pt )
+drawImageTable( cv::Mat image_color, cv::Point pt, float angle )
 {
     float dist     = disOfPoints( image_center, pt );
     float sinTheta = sinAngOfPoints( image_center, pt, dist );
@@ -143,11 +145,8 @@ drawImageTable( cv::Mat image_color, cv::Point pt )
                          ( float )( pt.x - image_center.x ) )
                   * ( 180.0 / CV_PI );
 
-    std::cout << atan2( ( float )( pt.y - image_center.y ), //
-                        ( float )( pt.x - image_center.x ) )
-                 * ( 180.0 / CV_PI )
-              << " " << asin( sinTheta ) * 180. / CV_PI << " "
-              << acos( cosTheta ) * 180. / CV_PI << "\n";
+    // std::cout << theta << " " << asin( sinTheta ) * 180. / CV_PI << " "
+    //           << acos( cosTheta ) * 180. / CV_PI << "\n";
 
     Eigen::Matrix2f R;
     R << cosTheta, -sinTheta, sinTheta, cosTheta;
@@ -155,9 +154,9 @@ drawImageTable( cv::Mat image_color, cv::Point pt )
     int thetaIdx;
 
     if ( theta < 0.f )
-        thetaIdx = int( FREAK_NB_ORIENTATION * ( -theta ) * ( 1 / 360.0 ) - 0.5 );
+        thetaIdx = int( FREAK_NB_ORIENTATION * ( -theta + angle ) * ( 1 / 360.0 ) - 0.5 );
     else
-        thetaIdx = int( FREAK_NB_ORIENTATION * ( -theta ) * ( 1 / 360.0 ) + 0.5 );
+        thetaIdx = int( FREAK_NB_ORIENTATION * ( -theta + angle ) * ( 1 / 360.0 ) + 0.5 );
 
     if ( thetaIdx < 0 )
         thetaIdx += FREAK_NB_ORIENTATION;
@@ -193,9 +192,9 @@ drawImageTable( cv::Mat image_color, cv::Point pt )
 }
 
 void
-drawImageCalc( cv::Mat image_color, cv::Point pt )
+drawImageCalc( cv::Mat image_color, cv::Point pt, float angle )
 {
-    double alpha, beta, theta = 0;
+    double alpha, beta, theta = angle * CV_PI / 180.;
 
     const int n[8] = { 6, 6, 6, 6, 6, 6, 6, 1 };
     const double bigR( 2.0 / 3.0 );    // bigger radius
