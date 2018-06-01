@@ -126,47 +126,7 @@ class CV_EXPORTS_W SFREAK : public Feature2D
         return angle;
     }
 
-    void drawPoint2Yellow( cv::Mat& image, Eigen::Vector2d pt )
-    {
-        image.at< cv::Vec3b >( double2int( pt( 1 ) ), double2int( pt( 0 ) ) )[0] = 0;   // b
-        image.at< cv::Vec3b >( double2int( pt( 1 ) ), double2int( pt( 0 ) ) )[1] = 255; // g
-        image.at< cv::Vec3b >( double2int( pt( 1 ) ), double2int( pt( 0 ) ) )[2] = 255; // r
-    }
-    void drawPoint2Red( cv::Mat& image, Eigen::Vector2d pt )
-    {
-        image.at< cv::Vec3b >( double2int( pt( 1 ) ), double2int( pt( 0 ) ) )[0] = 0;   // b
-        image.at< cv::Vec3b >( double2int( pt( 1 ) ), double2int( pt( 0 ) ) )[1] = 0;   // g
-        image.at< cv::Vec3b >( double2int( pt( 1 ) ), double2int( pt( 0 ) ) )[2] = 255; // r
-    }
-    void drawPoint2Blue( cv::Mat& image, Eigen::Vector2d pt )
-    {
-        image.at< cv::Vec3b >( double2int( pt( 1 ) ), double2int( pt( 0 ) ) )[0] = 255; // b
-        image.at< cv::Vec3b >( double2int( pt( 1 ) ), double2int( pt( 0 ) ) )[1] = 0;   // g
-        image.at< cv::Vec3b >( double2int( pt( 1 ) ), double2int( pt( 0 ) ) )[2] = 0;   // r
-    }
-    void drawPoint2Green( cv::Mat& image, Eigen::Vector2d pt )
-    {
-        image.at< cv::Vec3b >( double2int( pt( 1 ) ), double2int( pt( 0 ) ) )[0] = 0;   // b
-        image.at< cv::Vec3b >( double2int( pt( 1 ) ), double2int( pt( 0 ) ) )[1] = 255; // g
-        image.at< cv::Vec3b >( double2int( pt( 1 ) ), double2int( pt( 0 ) ) )[2] = 0;   // r
-    }
-
-    int double2int( double a )
-    {
-        if ( 1 )
-        {
-            double abs_a = abs( a );
-            int int_a    = int( abs_a );
-            if ( abs_a - int_a >= 0.5 )
-                return a > 0 ? ( abs_a + 1 ) : ( -( abs_a + 1 ) );
-            else
-                return a > 0 ? int_a : ( -int_a );
-        }
-    }
-
     virtual void buildOffsetsTable( )                      = 0;
-    virtual bool saveTable2Yaml( std::string path )        = 0;
-    virtual bool loadTableFromYaml( std::string path )     = 0;
     virtual bool saveTable2Data( std::string filename )    = 0;
     virtual bool loadTableFromData( std::string filename ) = 0;
 

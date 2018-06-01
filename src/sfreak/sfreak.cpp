@@ -102,8 +102,6 @@ class SFREAK_Impl : public SFREAK
                                     bool verbose            = true );
     virtual void compute( InputArray image, std::vector< KeyPoint >& keypoints, OutputArray descriptors );
     virtual void buildOffsetsTable( );
-    virtual bool saveTable2Yaml( std::string filename );
-    virtual bool loadTableFromYaml( std::string filename );
     virtual bool saveTable2Data( std::string filename );
     virtual bool loadTableFromData( std::string filename );
 
