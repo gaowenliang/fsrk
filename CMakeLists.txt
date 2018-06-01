@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 2.8.3)
-project(fsf)
+project(fsrk)
 
 set(CMAKE_VERBOSE_MAKEFILE "true")
 set(CMAKE_BUILD_TYPE "Release")
@@ -22,7 +22,7 @@ find_package(Eigen3  REQUIRED)
 
 catkin_package(
     INCLUDE_DIRS include
-    LIBRARIES fsf
+    LIBRARIES fsrk
 #    CATKIN_DEPENDS roscpp
     )
 
