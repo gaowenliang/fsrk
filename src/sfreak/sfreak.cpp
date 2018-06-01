@@ -241,8 +241,10 @@ bool
 SFREAK_Impl::saveTable2Data( std::string filename )
 {
     if ( m_tableOffsets.empty( ) )
+    {
+        std::cout << "[#INFO] Table is empty !!\n";
         return false;
-
+    }
     sys_utils::io::writeMatrixToBinary( filename, m_tableOffsets );
 }
 
