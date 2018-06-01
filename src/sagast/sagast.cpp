@@ -127,17 +127,26 @@ AgastDetector::loadCamera( std::string cam_file )
     std::cout << cam->parametersToString( ) << std::endl;
     image_center = cam->getPrinciple( );
     std::cout << "#INFO: LOADing camera config is DONE." << cam_file << std::endl;
+
+    return true;
 }
 bool
 AgastDetector::loadMask( std::string file )
 {
     m_mask = cv::imread( file, cv::IMREAD_GRAYSCALE );
+
+    if ( m_mask.empty( ) )
+        return false;
+    else
+        return true;
 }
 
 bool
 AgastDetector::loadMask( )
 {
     m_mask = cv::Mat( cam->imageHeight( ), cam->imageWidth( ), CV_8UC1, cv::Scalar( 255 ) );
+
+    return true;
 }
 
 void

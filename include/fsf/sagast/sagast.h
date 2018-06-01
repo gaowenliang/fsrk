@@ -66,8 +66,6 @@ class AgastDetector : public Feature2D
     bool loadMask( );
 
     void buildOffsetsTable( );
-    bool saveOffsetsTable( std::string path );
-    bool loadOffsetsTable( std::string path );
     bool saveOffsetsCfg( std::string file );
     bool loadOffsetsCfg( std::string file );
 
@@ -84,26 +82,18 @@ class AgastDetector : public Feature2D
 
     private:
     void calc_8( InputArray _img, std::vector< KeyPoint >& keypoints, int threshold );
-    bool loadOffsetsTable_8( std::string path );
-    bool saveOffsetsTable_8( std::string path );
     void getOffsets_8( short pixel[16], short rowStride, int xx, int yy );
     void buildOffsetsTable_8( );
 
     void calc_12d( InputArray _img, std::vector< KeyPoint >& keypoints, int threshold );
-    bool loadOffsetsTable_12d( std::string path );
-    bool saveOffsetsTable_12d( std::string path );
     void getOffsets_12d( short pixel[16], short rowStride, int xx, int yy );
     void buildOffsetsTable_12d( );
 
     void calc_12s( InputArray _img, std::vector< KeyPoint >& keypoints, int threshold );
-    bool loadOffsetsTable_12s( std::string path );
-    bool saveOffsetsTable_12s( std::string path );
     void getOffsets_12s( short pixel[16], short rowStride, int xx, int yy );
     void buildOffsetsTable_12s( );
 
     void calc_16( InputArray _img, std::vector< KeyPoint >& keypoints, int threshold );
-    bool loadOffsetsTable_16( std::string path );
-    bool saveOffsetsTable_16( std::string path );
     void getOffsets_16( short pixel[16], short rowStride, int xx, int yy );
     void buildOffsetsTable_16( );
 
