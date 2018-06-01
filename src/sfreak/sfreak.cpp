@@ -111,6 +111,7 @@ class SFREAK_Impl : public SFREAK
 
     protected:
     void buildPattern( );
+    void loadPattern( );
 
     template< typename imgType, typename iiType >
     imgType meanIntensity( InputArray image,
@@ -245,14 +246,28 @@ SFREAK_Impl::saveTable2Data( std::string filename )
         std::cout << "[#INFO] Table is empty !!\n";
         return false;
     }
+
     sys_utils::io::writeMatrixToBinary( filename, m_tableOffsets );
+
+    return true;
 }
 
 bool
 SFREAK_Impl::loadTableFromData( std::string filename )
 {
-
     sys_utils::io::parseMatrixFromBinary( filename, m_tableOffsets );
+
+    if ( m_tableOffsets.empty( ) )
+    {
+        std::cout << "[#INFO] load Table From Data failed !!\n";
+        return false;
+    }
+
+    pixel_size = m_tableOffsets.rows;
+
+    loadPattern( );
+
+    return true;
 }
 
 // int color_rand1;
@@ -412,9 +427,6 @@ SFREAK_Impl::buildPattern( )
 
                 int pointIdx = 0;
 
-                //                PatternEllipse* patternLookupPtr =
-                //                &patternTable[index][0];
-
                 // 8 groups
                 for ( size_t i = 0; i < 8; ++i )
                 {
@@ -427,94 +439,78 @@ SFREAK_Impl::buildPattern( )
                         alpha = double( k ) * 2 * CV_PI / double( n[i] ) + beta + theta;
 
                         // add the point to the look-up table
-                        // PatternEllipse& ell
-                        //= patternLookupPtr[scaleIdx * FREAK_NB_ORIENTATION *
-                        // FREAK_NB_POINTS //
-                        //                   + orientationIdx * FREAK_NB_POINTS
-                        //                   + pointIdx];
+                        float center_x = static_cast< float >(
+                        radius[i] * cos( alpha ) * scalingFactor * patternScale );
+                        float center_y = static_cast< float >(
+                        radius[i] * sin( alpha ) * scalingFactor * patternScale );
 
-                        //   float center_x = static_cast< float >(
-                        //   radius[i] * cos( alpha ) * scalingFactor * patternScale );
-                        //   float center_y = static_cast< float >(
-                        //   radius[i] * sin( alpha ) * scalingFactor * patternScale );
-                        //
-                        //   float center_c_x = center_x + image_center.x;
-                        //   float center_c_y = center_y + image_center.y;
-                        //   float radius_c = static_cast< float >( sigma[i] * scalingFactor
-                        //   * patternScale );
-                        //
-                        //   cv::CircleInt cirle( Point( center_c_x, center_c_y ), int(
-                        //   radius_c ) );
-                        //   std::vector< cv::Point2f > pts_circle;
-                        //   pts_circle = cirle.getCirclePoints( cam->imageSize( ) );
-                        //
-                        //   // src pt
-                        //   Eigen::Vector2d p_u00( image_center.x, image_center.y );
-                        //   Eigen::Vector3d P_center;
-                        //   cam->liftSphere( p_u00, P_center );
-                        //   P_center.normalize( );
-                        //
-                        //   // dst pt
-                        //   Eigen::Vector2d p_u( image_center.x + index, image_center.y );
-                        //   Eigen::Vector2d angle_center = calcAngle( cam, p_u );
-                        //   Eigen::Vector3d P_center2( cos( angle_center( 1 ) ) * sin(
-                        //   angle_center( 0 ) ),
-                        //                              sin( angle_center( 1 ) ) * sin(
-                        //                              angle_center( 0 ) ),
-                        //                              cos( angle_center( 0 ) ) );
-                        //   P_center2.normalize( );
-                        //
-                        //   // delta vector
-                        //   double delta_angle   = acos( P_center.dot( P_center2 ) );
-                        //   Eigen::Vector3d dVec = P_center.cross( P_center2 );
-                        //   dVec.normalize( );
-                        //
-                        //   // rotation vector
-                        //   Eigen::Quaterniond q_v1v0( cos( 0.5 * delta_angle ),
-                        //                              sin( 0.5 * delta_angle ) * dVec( 0
-                        //                              ),
-                        //                              sin( 0.5 * delta_angle ) * dVec( 1
-                        //                              ),
-                        //                              sin( 0.5 * delta_angle ) * dVec( 2 )
-                        //                              );
-                        //
-                        //   std::vector< cv::Point2f > pt_ellipse;
-                        //   for ( auto& pt : pts_circle )
-                        //   {
-                        //       Eigen::Vector2d p_src2( pt.x, pt.y );
-                        //       Eigen::Vector3d P_src2;
-                        //       cam->liftSphere( p_src2, P_src2 );
-                        //
-                        //       Eigen::Vector3d offset_P2 = q_v1v0 * P_src2;
-                        //
-                        //       Eigen::Vector2d offset_p2;
-                        //       cam->spaceToPlane( offset_P2, offset_p2 );
-                        //       // drawPoint2Yellow( image_color, offset_p2 );
-                        //
-                        //       pt_ellipse.push_back( cv::Point2f( offset_p2( 0 ),
-                        //       offset_p2( 1 ) ) );
-                        //   }
-                        //
-                        //   Ellipse ellip_fit;
-                        //   ellip_fit.fit( pt_ellipse );
-                        //
-                        //   EllipsePtr ellip(
-                        //   new Ellipse( ellip_fit.box.center - cv::Point2f( p_u( 0 ), p_u(
-                        //   1 ) ),
-                        //                ellip_fit.box.size,
-                        //                ellip_fit.box.angle ) );
-                        //   //                        ell.pPatt = ellip;
+                        float center_c_x = center_x + image_center.x;
+                        float center_c_y = center_y + image_center.y;
+                        float radius_c = static_cast< float >( sigma[i] * scalingFactor * patternScale );
+
+                        cv::CircleInt cirle( Point( center_c_x, center_c_y ), int( radius_c ) );
+                        std::vector< cv::Point2f > pts_circle;
+                        pts_circle = cirle.getCirclePoints( cam->imageSize( ) );
+
+                        // src pt
+                        Eigen::Vector2d p_u00( image_center.x, image_center.y );
+                        Eigen::Vector3d P_center;
+                        cam->liftSphere( p_u00, P_center );
+                        P_center.normalize( );
+
+                        // dst pt
+                        Eigen::Vector2d p_u( image_center.x + index, image_center.y );
+                        Eigen::Vector2d angle_center = calcAngle( cam, p_u );
+                        Eigen::Vector3d P_center2( cos( angle_center( 1 ) ) * sin( angle_center( 0 ) ),
+                                                   sin( angle_center( 1 ) ) * sin( angle_center( 0 ) ),
+                                                   cos( angle_center( 0 ) ) );
+                        P_center2.normalize( );
+
+                        // delta vector
+                        double delta_angle   = acos( P_center.dot( P_center2 ) );
+                        Eigen::Vector3d dVec = P_center.cross( P_center2 );
+                        dVec.normalize( );
+
+                        // rotation vector
+                        Eigen::Quaterniond q_v1v0( cos( 0.5 * delta_angle ),
+                                                   sin( 0.5 * delta_angle ) * dVec( 0 ),
+                                                   sin( 0.5 * delta_angle ) * dVec( 1 ),
+                                                   sin( 0.5 * delta_angle ) * dVec( 2 ) );
+
+                        std::vector< cv::Point2f > pt_ellipse;
+                        for ( auto& pt : pts_circle )
+                        {
+                            Eigen::Vector2d p_src2( pt.x, pt.y );
+                            Eigen::Vector3d P_src2;
+                            cam->liftSphere( p_src2, P_src2 );
+
+                            Eigen::Vector3d offset_P2 = q_v1v0 * P_src2;
+
+                            Eigen::Vector2d offset_p2;
+                            cam->spaceToPlane( offset_P2, offset_p2 );
+                            // drawPoint2Yellow( image_color, offset_p2 );
+
+                            pt_ellipse.push_back( cv::Point2f( offset_p2( 0 ), offset_p2( 1 ) ) );
+                        }
+
+                        Ellipse ellip_fit;
+                        ellip_fit.fit( pt_ellipse );
+
+                        EllipsePtr ellip(
+                        new Ellipse( ellip_fit.box.center - cv::Point2f( p_u( 0 ), p_u( 1 ) ),
+                                     ellip_fit.box.size,
+                                     ellip_fit.box.angle ) );
+                        //                        ell.pPatt = ellip;
 
                         m_tableOffsets.at< cv::Vec5f >( index,
                                                         scaleIdx * FREAK_NB_ORIENTATION * FREAK_NB_POINTS //
                                                         + orientationIdx * FREAK_NB_POINTS
                                                         + pointIdx )
-                        = cv::Vec5f( 1.5, 1.5, 1.5, 1.5, 1.6 );
-                        //  = cv::Vec5f( ellip->box.center.x,
-                        //               ellip->box.center.y,
-                        //               ellip->box.size.width,
-                        //               ellip->box.size.height,
-                        //               ellip->box.angle );
+                        = cv::Vec5f( ellip->box.center.x,
+                                     ellip->box.center.y,
+                                     ellip->box.size.width,
+                                     ellip->box.size.height,
+                                     ellip->box.angle );
 
                         // NOTE
                         //   if ( index % 15 == 0 )
@@ -648,6 +644,209 @@ SFREAK_Impl::buildPattern( )
 
     //    drawPattern( );
 }
+
+void
+SFREAK_Impl::loadPattern( )
+{
+    if ( patternScale == patternScale0 //
+         && nOctaves == nOctaves0 )
+        return;
+
+    nOctaves0     = nOctaves;
+    patternScale0 = patternScale;
+
+    int img_width          = cam->imageWidth( );
+    int img_height         = cam->imageHeight( );
+    cv::Point2f center_cam = image_center;
+
+    std::vector< float > pixels_size;
+    pixels_size.push_back( std::sqrt( ( center_cam.x - 0 ) * ( center_cam.x - 0 )
+                                      + ( center_cam.y - 0 ) * ( center_cam.y - 0 ) ) );
+    pixels_size.push_back( std::sqrt( ( center_cam.x - img_width ) * ( center_cam.x - img_width )
+                                      + ( center_cam.y - 0 ) * ( center_cam.y - 0 ) ) );
+    pixels_size.push_back( std::sqrt( ( center_cam.x - img_width ) * ( center_cam.x - img_width )
+                                      + ( center_cam.y - img_height ) * ( center_cam.y - img_height ) ) );
+    pixels_size.push_back( std::sqrt( ( center_cam.x - 0 ) * ( center_cam.x - 0 )
+                                      + ( center_cam.y - img_height ) * ( center_cam.y - img_height ) ) );
+
+    int pixel_tmp = std::max( std::max( pixels_size[0], pixels_size[1] ),
+                              std::max( pixels_size[2], pixels_size[3] ) );
+    std::cout << "pixel_size " << pixel_size << " " << pixel_tmp << "\n";
+
+    // 2 ^ ( (nOctaves-1) /nbScales)
+    double scaleStep = std::pow( 2.0, ( double )( nOctaves ) / FREAK_NB_SCALES );
+    double scalingFactor;
+
+    // pattern definition, radius normalized to 1.0 (outer point position + sigma = 1.0)
+
+    // number of points on each concentric  circle (from outer to inner)
+    const int n[8] = { 6, 6, 6, 6, 6, 6, 6, 1 };
+
+    const double bigR( 2.0 / 3.0 );    // bigger radius
+    const double smallR( 2.0 / 24.0 ); // smaller radius
+
+    // define spaces between concentric circles (from center to outer: 1,2,3,4,5,6)
+    const double unitSpace( ( bigR - smallR ) / 21.0 );
+
+    // radii of the concentric cirles (from outer to inner)
+    const double radius[8] = { bigR,                  // 6
+                               bigR - 6 * unitSpace,  // 6
+                               bigR - 11 * unitSpace, // 6
+                               bigR - 15 * unitSpace, // 6
+                               bigR - 18 * unitSpace, // 6
+                               bigR - 20 * unitSpace, // 6
+                               smallR,                // 6
+                               0.0 };                 // 1
+
+    // sigma of pattern points (each group of 6 points on a concentric cirle
+    // has the same sigma)
+    const double sigma[8] = { radius[0] / 2.0, //
+                              radius[1] / 2.0, //
+                              radius[2] / 2.0, //
+                              radius[3] / 2.0, //
+                              radius[4] / 2.0, //
+                              radius[5] / 2.0, //
+                              radius[6] / 2.0, //
+                              radius[6] / 2.0 };
+#ifdef Table
+
+    // fill the lookup table
+    for ( int index = 0; index < pixel_size; ++index )
+    {
+        for ( int scaleIdx = 0; scaleIdx < FREAK_NB_SCALES; ++scaleIdx )
+        {
+            patternSizes[scaleIdx] = 0; // proper initialization
+
+            // scale of the pattern, scaleStep ^ scaleIdx
+            scalingFactor = std::pow( scaleStep, scaleIdx );
+
+            for ( int orientationIdx = 0; orientationIdx < FREAK_NB_ORIENTATION; ++orientationIdx )
+            {
+                // 8 groups
+                for ( size_t i = 0; i < 8; ++i )
+                {
+                    // 6 circles per group
+                    for ( int k = 0; k < n[i]; ++k )
+                    {
+
+                        // adapt the sizeList if necessary
+                        const int sizeMax
+                        = static_cast< int >( ceil( ( radius[i] + sigma[i] ) * scalingFactor * patternScale ) )
+                          + 1;
+
+                        if ( patternSizes[scaleIdx] < sizeMax )
+                            patternSizes[scaleIdx] = sizeMax;
+                    }
+                }
+            }
+        }
+    }
+#endif
+
+    // cv::imshow( "image_color_src", image_color );
+    // cv::waitKey( 0 );
+
+    // build the list of orientation pairs
+    // clang-format off
+     orientationPairs[0].i = 0;      orientationPairs[0].j = 3;
+     orientationPairs[1].i = 1;      orientationPairs[1].j = 4;
+     orientationPairs[2].i = 2;      orientationPairs[2].j = 5;
+     orientationPairs[3].i = 0;      orientationPairs[3].j = 2;
+     orientationPairs[4].i = 1;      orientationPairs[4].j = 3;
+     orientationPairs[5].i = 2;      orientationPairs[5].j = 4;
+     orientationPairs[6].i = 3;      orientationPairs[6].j = 5;
+     orientationPairs[7].i = 4;      orientationPairs[7].j = 0;
+     orientationPairs[8].i = 5;      orientationPairs[8].j = 1;
+     orientationPairs[9].i  = 6;     orientationPairs[9].j  = 9;
+     orientationPairs[10].i = 7;     orientationPairs[10].j = 10;
+     orientationPairs[11].i = 8;     orientationPairs[11].j = 11;
+     orientationPairs[12].i = 6;     orientationPairs[12].j = 8;
+     orientationPairs[13].i = 7;     orientationPairs[13].j = 9;
+     orientationPairs[14].i = 8;     orientationPairs[14].j = 10;
+     orientationPairs[15].i = 9;     orientationPairs[15].j = 11;
+     orientationPairs[16].i = 10;    orientationPairs[16].j = 6;
+     orientationPairs[17].i = 11;    orientationPairs[17].j = 7;
+     orientationPairs[18].i = 12;    orientationPairs[18].j = 15;
+     orientationPairs[19].i = 13;    orientationPairs[19].j = 16;
+     orientationPairs[20].i = 14;    orientationPairs[20].j = 17;
+     orientationPairs[21].i = 12;    orientationPairs[21].j = 14;
+     orientationPairs[22].i = 13;    orientationPairs[22].j = 15;
+     orientationPairs[23].i = 14;    orientationPairs[23].j = 16;
+     orientationPairs[24].i = 15;    orientationPairs[24].j = 17;
+     orientationPairs[25].i = 16;    orientationPairs[25].j = 12;
+     orientationPairs[26].i = 17;    orientationPairs[26].j = 13;
+     orientationPairs[27].i = 18;    orientationPairs[27].j = 21;
+     orientationPairs[28].i = 19;    orientationPairs[28].j = 22;
+     orientationPairs[29].i = 20;    orientationPairs[29].j = 23;
+     orientationPairs[30].i = 18;    orientationPairs[30].j = 20;
+     orientationPairs[31].i = 19;    orientationPairs[31].j = 21;
+     orientationPairs[32].i = 20;    orientationPairs[32].j = 22;
+     orientationPairs[33].i = 21;    orientationPairs[33].j = 23;
+     orientationPairs[34].i = 22;    orientationPairs[34].j = 18;
+     orientationPairs[35].i = 23;    orientationPairs[35].j = 19;
+     orientationPairs[36].i = 24;    orientationPairs[36].j = 27;
+     orientationPairs[37].i = 25;    orientationPairs[37].j = 28;
+     orientationPairs[38].i = 26;    orientationPairs[38].j = 29;
+     orientationPairs[39].i = 30;    orientationPairs[39].j = 33;
+     orientationPairs[40].i = 31;    orientationPairs[40].j = 34;
+     orientationPairs[41].i = 32;    orientationPairs[41].j = 35;
+     orientationPairs[42].i = 36;    orientationPairs[42].j = 39;
+     orientationPairs[43].i = 37;    orientationPairs[43].j = 40;
+     orientationPairs[44].i = 38;    orientationPairs[44].j = 41;
+    // clang-format on
+
+    for ( unsigned m = FREAK_NB_ORIENPAIRS; m--; )
+    {
+        cv::Vec5f param_i = m_tableOffsets.at< cv::Vec5f >( 0, orientationPairs[m].i );
+        cv::Vec5f param_j = m_tableOffsets.at< cv::Vec5f >( 0, orientationPairs[m].j );
+
+        const float dx = param_i[0] - param_j[0];
+        const float dy = param_i[1] - param_j[1];
+
+        const float norm_sq = ( dx * dx + dy * dy );
+
+        orientationPairs[m].weight_dx = int( ( dx / ( norm_sq ) ) * 4096.0 + 0.5 );
+        orientationPairs[m].weight_dy = int( ( dy / ( norm_sq ) ) * 4096.0 + 0.5 );
+    }
+
+    // build the list of description pairs
+    std::vector< DescriptionPair > allPairs;
+    for ( unsigned int i = 1; i < ( unsigned int )FREAK_NB_POINTS; ++i )
+    {
+        // (generate all the pairs)
+        for ( unsigned int j = 0; ( unsigned int )j < i; ++j )
+        {
+            DescriptionPair pair = { ( uchar )i, ( uchar )j };
+            allPairs.push_back( pair );
+        }
+    }
+    std::cout << "allPairs " << allPairs.size( ) << "\n";
+
+    // Input vector provided
+    if ( !selectedPairs0.empty( ) )
+    {
+        if ( ( int )selectedPairs0.size( ) == FREAK_NB_PAIRS )
+        {
+            for ( int i = 0; i < FREAK_NB_PAIRS; ++i )
+            {
+                descriptionPairs[i] = allPairs[selectedPairs0.at( i )];
+            }
+        }
+        else
+        {
+            CV_Error( Error::StsVecLengthErr,
+                      "Input vector does not match the required size" );
+        }
+    }
+    else // default selected pairs
+    {
+        for ( int i = 0; i < FREAK_NB_PAIRS; ++i )
+        {
+            descriptionPairs[i] = allPairs[FREAK_DEF_PAIRS[i]];
+        }
+    }
+}
+
 void
 SFREAK_Impl::buildOffsetsTable( )
 {
@@ -658,55 +857,6 @@ bool
 SFREAK_Impl::saveTable2Yaml( std::string filename )
 {
 
-    cam->writeParametersToYamlFile( filename );
-
-    /*
-    cv::FileStorage fs( filename, cv::FileStorage::APPEND );
-    fs << "feature_type"
-       << "FSF";
-    fs << "index_num" << int( patternTable.size( ) );
-    fs << "rotation_num" << int( FREAK_NB_ORIENTATION );
-
-    fs << "pattern_parameters";
-    fs << "{";
-    for ( int index = 0; index < int( patternTable.size( ) ); ++index )
-    {
-        std::string index_str = "index_" + std::to_string( index );
-        fs << std::string( index_str );
-        fs << "{";
-
-        for ( int rot = 0; rot < FREAK_NB_ORIENTATION; ++rot )
-        {
-            std::string rot_str = "rot_" + std::to_string( rot );
-            fs << std::string( rot_str );
-            fs << "{";
-
-            for ( int point = 0; point < FREAK_NB_POINTS; ++point )
-            {
-                std::string point_str = "point_" + std::to_string( point );
-                fs << std::string( point_str );
-                fs << "{";
-
-                const PatternEllipse& FreakEllip = patternTable[index][rot * FREAK_NB_POINTS
-    + point];
-
-                fs << std::string( "center_x" ) << FreakEllip.pPatt->box.center.x;
-                fs << std::string( "center_y" ) << FreakEllip.pPatt->box.center.y;
-
-                fs << std::string( "size_w" ) << FreakEllip.pPatt->box.size.width;
-                fs << std::string( "size_h" ) << FreakEllip.pPatt->box.size.height;
-
-                fs << std::string( "angle" ) << FreakEllip.pPatt->box.angle;
-                fs << "}";
-            }
-            fs << "}";
-        }
-        fs << "}";
-    }
-    fs << "}";
-
-    fs.release( );
-*/
     return true;
 }
 bool
