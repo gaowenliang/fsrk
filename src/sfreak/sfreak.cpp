@@ -36,6 +36,8 @@
 #include "../shape/ellipse.h"
 #include <algorithm>
 #include <bitset>
+#include <code_utils/cv_utils/cv_type.hpp>
+#include <code_utils/sys_utils/cvmat_file_io.hpp>
 #include <code_utils/sys_utils/tic_toc.h>
 #include <fstream>
 #include <iomanip>
@@ -99,8 +101,13 @@ class SFREAK_Impl : public SFREAK
                                     const double corrThresh = 0.7,
                                     bool verbose            = true );
     virtual void compute( InputArray image, std::vector< KeyPoint >& keypoints, OutputArray descriptors );
+    virtual void buildOffsetsTable( );
+    virtual bool saveTable2Yaml( std::string filename );
+    virtual bool loadTableFromYaml( std::string filename );
+    virtual bool saveTable2Data( std::string filename );
+    virtual bool loadTableFromData( std::string filename );
 
-    void drawPattern( );
+    //    void drawPattern( );
 
     protected:
     void buildPattern( );
@@ -163,7 +170,9 @@ class SFREAK_Impl : public SFREAK
     // look-up table for the pattern points
     // (position+sigma of all points at all
     // scales and orientation)
-    std::vector< std::vector< PatternEllipse > > patternTable;
+    //    std::vector< std::vector< PatternEllipse > > patternTable;
+
+    cv::Mat m_tableOffsets;
 
     int patternSizes[NB_SCALES]; // size of the pattern at a specific scale (used to check
                                  // if a point is within image boundaries)
@@ -172,8 +181,6 @@ class SFREAK_Impl : public SFREAK
 };
 
 static const double FREAK_LOG2 = 0.693147180559945;
-// static const int FREAK_NB_ORIENTATION = 1; // 180
-// static const int FREAK_NB_POINTS      = 43;
 #define FREAK_NB_ORIENTATION 180 // 180
 #define FREAK_NB_POINTS 43
 static const int FREAK_SMALLEST_KP_SIZE = 7; // smallest size of keypoints
@@ -230,60 +237,82 @@ struct sortMean
     }
 };
 
+bool
+SFREAK_Impl::saveTable2Data( std::string filename )
+{
+    if ( m_tableOffsets.empty( ) )
+        return false;
+
+    sys_utils::io::writeMatrixToBinary( filename, m_tableOffsets );
+}
+
+bool
+SFREAK_Impl::loadTableFromData( std::string filename )
+{
+
+    sys_utils::io::parseMatrixFromBinary( filename, m_tableOffsets );
+}
+
 // int color_rand1;
 // int color_rand2;
 // int color_rand3;
 // Mat image_color;
 
 // create an image showing the brisk pattern
-void
-SFREAK_Impl::drawPattern( )
-{
-    Mat pattern = Mat::zeros( 1000, 1000, CV_8UC3 ) + Scalar( 255, 255, 255 );
-    int sFac    = 500 / patternScale;
-    for ( int n = 0; n < FREAK_NB_POINTS; ++n )
-    {
-        PatternEllipse& pt = patternTable[0][n];
-        circle( pattern,
-                Point( pt.pPatt->box.center.x * sFac, pt.pPatt->box.center.y * sFac ) + Point( 500, 500 ),
-                pt.pPatt->box.size.width * sFac,
-                Scalar( 0, 0, 255 ),
-                2 );
-        rectangle( pattern,
-                   Point( ( pt.pPatt->box.center.x - pt.pPatt->box.size.width ) * sFac,
-                          ( pt.pPatt->box.center.y - pt.pPatt->box.size.width ) * sFac )
-                   + Point( 500, 500 ),
-                   Point( ( pt.pPatt->box.center.x + pt.pPatt->box.size.width ) * sFac,
-                          ( pt.pPatt->box.center.y + pt.pPatt->box.size.width ) * sFac )
-                   + Point( 500, 500 ),
-                   Scalar( 0, 0, 255 ),
-                   2 );
+// void
+// SFREAK_Impl::drawPattern( )
+//{
+//    Mat pattern = Mat::zeros( 1000, 1000, CV_8UC3 ) + Scalar( 255, 255, 255 );
+//    int sFac    = 500 / patternScale;
+//    for ( int n = 0; n < FREAK_NB_POINTS; ++n )
+//    {
+//        PatternEllipse& pt = patternTable[0][n];
+//        circle( pattern,
+//                Point( pt.pPatt->box.center.x * sFac, pt.pPatt->box.center.y * sFac ) +
+//                Point( 500, 500 ),
+//                pt.pPatt->box.size.width * sFac,
+//                Scalar( 0, 0, 255 ),
+//                2 );
+//        //  rectangle( pattern,
+//        //             Point( ( pt.pPatt->box.center.x - pt.pPatt->box.size.width ) *
+//        sFac,
+//        //                    ( pt.pPatt->box.center.y - pt.pPatt->box.size.width ) * sFac
+//        )
+//        //             + Point( 500, 500 ),
+//        //             Point( ( pt.pPatt->box.center.x + pt.pPatt->box.size.width ) *
+//        sFac,
+//        //                    ( pt.pPatt->box.center.y + pt.pPatt->box.size.width ) * sFac
+//        )
+//        //             + Point( 500, 500 ),
+//        //             Scalar( 0, 0, 255 ),
+//        //             2 );
 
-        circle( pattern,
-                Point( pt.pPatt->box.center.x * sFac, pt.pPatt->box.center.y * sFac ) + Point( 500, 500 ),
-                1,
-                Scalar( 0, 0, 0 ),
-                3 );
-        std::ostringstream oss;
-        oss << n;
-        putText( pattern,
-                 oss.str( ),
-                 Point( pt.pPatt->box.center.x * sFac, pt.pPatt->box.center.y * sFac ) + Point( 500, 500 ),
-                 FONT_HERSHEY_SIMPLEX,
-                 0.5,
-                 Scalar( 0, 0, 0 ),
-                 1 );
-    }
-    imshow( "FreakDescriptorExtractor pattern", pattern );
-    waitKey( 0 );
-}
+//        circle( pattern,
+//                Point( pt.pPatt->box.center.x * sFac, pt.pPatt->box.center.y * sFac ) +
+//                Point( 500, 500 ),
+//                1,
+//                Scalar( 0, 0, 0 ),
+//                3 );
+//        std::ostringstream oss;
+//        oss << n;
+//        putText( pattern,
+//                 oss.str( ),
+//                 Point( pt.pPatt->box.center.x * sFac, pt.pPatt->box.center.y * sFac ) +
+//                 Point( 500, 500 ),
+//                 FONT_HERSHEY_SIMPLEX,
+//                 0.5,
+//                 Scalar( 0, 0, 0 ),
+//                 1 );
+//    }
+//    imshow( "FreakDescriptorExtractor pattern", pattern );
+//    waitKey( 0 );
+//}
 
 void
 SFREAK_Impl::buildPattern( )
 {
     if ( patternScale == patternScale0 //
-         && nOctaves == nOctaves0
-         && !patternTable.empty( ) )
+         && nOctaves == nOctaves0 )
         return;
 
     nOctaves0     = nOctaves;
@@ -308,13 +337,17 @@ SFREAK_Impl::buildPattern( )
     std::cout << "pixel_size " << pixel_size << "\n";
 
 #ifdef Table
-    patternTable.resize( pixel_size );
-    for ( int index = 0; index < pixel_size; ++index )
-    {
-        patternTable[index].resize( FREAK_NB_SCALES * FREAK_NB_ORIENTATION * FREAK_NB_POINTS );
-    }
-    std::cout << "[#Debug] patternTable size: " << patternTable[0].size( ) * patternTable.size( )
-              << "\n\n\n";
+
+    m_tableOffsets
+    = cv::Mat( pixel_size, FREAK_NB_ORIENTATION * FREAK_NB_POINTS, CV_32FC5, cv::Scalar( 0 ) );
+
+    // patternTable.resize( pixel_size );
+    // for ( int index = 0; index < pixel_size; ++index )
+    // {
+    //     patternTable[index].resize( FREAK_NB_SCALES * FREAK_NB_ORIENTATION *
+    //     FREAK_NB_POINTS );
+    // }
+    std::cout << "[#Debug] patternTable size: " << m_tableOffsets.size( ) << "\n\n\n";
 #endif
     // 2 ^ ( (nOctaves-1) /nbScales)
     double scaleStep = std::pow( 2.0, ( double )( nOctaves ) / FREAK_NB_SCALES );
@@ -377,7 +410,8 @@ SFREAK_Impl::buildPattern( )
 
                 int pointIdx = 0;
 
-                PatternEllipse* patternLookupPtr = &patternTable[index][0];
+                //                PatternEllipse* patternLookupPtr =
+                //                &patternTable[index][0];
 
                 // 8 groups
                 for ( size_t i = 0; i < 8; ++i )
@@ -391,73 +425,94 @@ SFREAK_Impl::buildPattern( )
                         alpha = double( k ) * 2 * CV_PI / double( n[i] ) + beta + theta;
 
                         // add the point to the look-up table
-                        PatternEllipse& ell
-                        = patternLookupPtr[scaleIdx * FREAK_NB_ORIENTATION * FREAK_NB_POINTS //
-                                           + orientationIdx * FREAK_NB_POINTS
-                                           + pointIdx];
+                        // PatternEllipse& ell
+                        //= patternLookupPtr[scaleIdx * FREAK_NB_ORIENTATION *
+                        // FREAK_NB_POINTS //
+                        //                   + orientationIdx * FREAK_NB_POINTS
+                        //                   + pointIdx];
 
-                        float center_x = static_cast< float >(
-                        radius[i] * cos( alpha ) * scalingFactor * patternScale );
-                        float center_y = static_cast< float >(
-                        radius[i] * sin( alpha ) * scalingFactor * patternScale );
+                        //   float center_x = static_cast< float >(
+                        //   radius[i] * cos( alpha ) * scalingFactor * patternScale );
+                        //   float center_y = static_cast< float >(
+                        //   radius[i] * sin( alpha ) * scalingFactor * patternScale );
+                        //
+                        //   float center_c_x = center_x + image_center.x;
+                        //   float center_c_y = center_y + image_center.y;
+                        //   float radius_c = static_cast< float >( sigma[i] * scalingFactor
+                        //   * patternScale );
+                        //
+                        //   cv::CircleInt cirle( Point( center_c_x, center_c_y ), int(
+                        //   radius_c ) );
+                        //   std::vector< cv::Point2f > pts_circle;
+                        //   pts_circle = cirle.getCirclePoints( cam->imageSize( ) );
+                        //
+                        //   // src pt
+                        //   Eigen::Vector2d p_u00( image_center.x, image_center.y );
+                        //   Eigen::Vector3d P_center;
+                        //   cam->liftSphere( p_u00, P_center );
+                        //   P_center.normalize( );
+                        //
+                        //   // dst pt
+                        //   Eigen::Vector2d p_u( image_center.x + index, image_center.y );
+                        //   Eigen::Vector2d angle_center = calcAngle( cam, p_u );
+                        //   Eigen::Vector3d P_center2( cos( angle_center( 1 ) ) * sin(
+                        //   angle_center( 0 ) ),
+                        //                              sin( angle_center( 1 ) ) * sin(
+                        //                              angle_center( 0 ) ),
+                        //                              cos( angle_center( 0 ) ) );
+                        //   P_center2.normalize( );
+                        //
+                        //   // delta vector
+                        //   double delta_angle   = acos( P_center.dot( P_center2 ) );
+                        //   Eigen::Vector3d dVec = P_center.cross( P_center2 );
+                        //   dVec.normalize( );
+                        //
+                        //   // rotation vector
+                        //   Eigen::Quaterniond q_v1v0( cos( 0.5 * delta_angle ),
+                        //                              sin( 0.5 * delta_angle ) * dVec( 0
+                        //                              ),
+                        //                              sin( 0.5 * delta_angle ) * dVec( 1
+                        //                              ),
+                        //                              sin( 0.5 * delta_angle ) * dVec( 2 )
+                        //                              );
+                        //
+                        //   std::vector< cv::Point2f > pt_ellipse;
+                        //   for ( auto& pt : pts_circle )
+                        //   {
+                        //       Eigen::Vector2d p_src2( pt.x, pt.y );
+                        //       Eigen::Vector3d P_src2;
+                        //       cam->liftSphere( p_src2, P_src2 );
+                        //
+                        //       Eigen::Vector3d offset_P2 = q_v1v0 * P_src2;
+                        //
+                        //       Eigen::Vector2d offset_p2;
+                        //       cam->spaceToPlane( offset_P2, offset_p2 );
+                        //       // drawPoint2Yellow( image_color, offset_p2 );
+                        //
+                        //       pt_ellipse.push_back( cv::Point2f( offset_p2( 0 ),
+                        //       offset_p2( 1 ) ) );
+                        //   }
+                        //
+                        //   Ellipse ellip_fit;
+                        //   ellip_fit.fit( pt_ellipse );
+                        //
+                        //   EllipsePtr ellip(
+                        //   new Ellipse( ellip_fit.box.center - cv::Point2f( p_u( 0 ), p_u(
+                        //   1 ) ),
+                        //                ellip_fit.box.size,
+                        //                ellip_fit.box.angle ) );
+                        //   //                        ell.pPatt = ellip;
 
-                        float center_c_x = center_x + image_center.x;
-                        float center_c_y = center_y + image_center.y;
-                        float radius_c = static_cast< float >( sigma[i] * scalingFactor * patternScale );
-
-                        cv::CircleInt cirle( Point( center_c_x, center_c_y ), int( radius_c ) );
-                        std::vector< cv::Point2f > pts_circle;
-                        pts_circle = cirle.getCirclePoints( cam->imageSize( ) );
-
-                        // src pt
-                        Eigen::Vector2d p_u00( image_center.x, image_center.y );
-                        Eigen::Vector3d P_center;
-                        cam->liftSphere( p_u00, P_center );
-                        P_center.normalize( );
-
-                        // dst pt
-                        Eigen::Vector2d p_u( image_center.x + index, image_center.y );
-                        Eigen::Vector2d angle_center = calcAngle( cam, p_u );
-                        Eigen::Vector3d P_center2( cos( angle_center( 1 ) ) * sin( angle_center( 0 ) ),
-                                                   sin( angle_center( 1 ) ) * sin( angle_center( 0 ) ),
-                                                   cos( angle_center( 0 ) ) );
-                        P_center2.normalize( );
-
-                        // delta vector
-                        double delta_angle   = acos( P_center.dot( P_center2 ) );
-                        Eigen::Vector3d dVec = P_center.cross( P_center2 );
-                        dVec.normalize( );
-
-                        // rotation vector
-                        Eigen::Quaterniond q_v1v0( cos( 0.5 * delta_angle ),
-                                                   sin( 0.5 * delta_angle ) * dVec( 0 ),
-                                                   sin( 0.5 * delta_angle ) * dVec( 1 ),
-                                                   sin( 0.5 * delta_angle ) * dVec( 2 ) );
-
-                        std::vector< cv::Point2f > pt_ellipse;
-                        for ( auto& pt : pts_circle )
-                        {
-                            Eigen::Vector2d p_src2( pt.x, pt.y );
-                            Eigen::Vector3d P_src2;
-                            cam->liftSphere( p_src2, P_src2 );
-
-                            Eigen::Vector3d offset_P2 = q_v1v0 * P_src2;
-
-                            Eigen::Vector2d offset_p2;
-                            cam->spaceToPlane( offset_P2, offset_p2 );
-                            // drawPoint2Yellow( image_color, offset_p2 );
-
-                            pt_ellipse.push_back( cv::Point2f( offset_p2( 0 ), offset_p2( 1 ) ) );
-                        }
-
-                        Ellipse ellip_fit;
-                        ellip_fit.fit( pt_ellipse );
-
-                        EllipsePtr ellip(
-                        new Ellipse( ellip_fit.box.center - cv::Point2f( p_u( 0 ), p_u( 1 ) ),
-                                     ellip_fit.box.size,
-                                     ellip_fit.box.angle ) );
-                        ell.pPatt = ellip;
+                        m_tableOffsets.at< cv::Vec5f >( index,
+                                                        scaleIdx * FREAK_NB_ORIENTATION * FREAK_NB_POINTS //
+                                                        + orientationIdx * FREAK_NB_POINTS
+                                                        + pointIdx )
+                        = cv::Vec5f( 1.5, 1.5, 1.5, 1.5, 1.6 );
+                        //  = cv::Vec5f( ellip->box.center.x,
+                        //               ellip->box.center.y,
+                        //               ellip->box.size.width,
+                        //               ellip->box.size.height,
+                        //               ellip->box.angle );
 
                         // NOTE
                         //   if ( index % 15 == 0 )
@@ -534,11 +589,17 @@ SFREAK_Impl::buildPattern( )
 
     for ( unsigned m = FREAK_NB_ORIENPAIRS; m--; )
     {
-        const float dx = patternTable[0][orientationPairs[m].i].pPatt->box.center.x
-                         - patternTable[0][orientationPairs[m].j].pPatt->box.center.x;
+        cv::Vec5f param_i = m_tableOffsets.at< cv::Vec5f >( 0, orientationPairs[m].i );
+        cv::Vec5f param_j = m_tableOffsets.at< cv::Vec5f >( 0, orientationPairs[m].j );
 
-        const float dy = patternTable[0][orientationPairs[m].i].pPatt->box.center.y
-                         - patternTable[0][orientationPairs[m].j].pPatt->box.center.y;
+        const float dx = param_i[0] - param_j[0];
+        const float dy = param_i[1] - param_j[1];
+
+        // const float dx = patternTable[0][orientationPairs[m].i].pPatt->box.center.x
+        //                  - patternTable[0][orientationPairs[m].j].pPatt->box.center.x;
+        //
+        // const float dy = patternTable[0][orientationPairs[m].i].pPatt->box.center.y
+        //                  - patternTable[0][orientationPairs[m].j].pPatt->box.center.y;
 
         const float norm_sq = ( dx * dx + dy * dy );
 
@@ -585,7 +646,90 @@ SFREAK_Impl::buildPattern( )
 
     //    drawPattern( );
 }
+void
+SFREAK_Impl::buildOffsetsTable( )
+{
+    ( ( SFREAK_Impl* )this )->buildPattern( );
+}
 
+bool
+SFREAK_Impl::saveTable2Yaml( std::string filename )
+{
+
+    cam->writeParametersToYamlFile( filename );
+
+    /*
+    cv::FileStorage fs( filename, cv::FileStorage::APPEND );
+    fs << "feature_type"
+       << "FSF";
+    fs << "index_num" << int( patternTable.size( ) );
+    fs << "rotation_num" << int( FREAK_NB_ORIENTATION );
+
+    fs << "pattern_parameters";
+    fs << "{";
+    for ( int index = 0; index < int( patternTable.size( ) ); ++index )
+    {
+        std::string index_str = "index_" + std::to_string( index );
+        fs << std::string( index_str );
+        fs << "{";
+
+        for ( int rot = 0; rot < FREAK_NB_ORIENTATION; ++rot )
+        {
+            std::string rot_str = "rot_" + std::to_string( rot );
+            fs << std::string( rot_str );
+            fs << "{";
+
+            for ( int point = 0; point < FREAK_NB_POINTS; ++point )
+            {
+                std::string point_str = "point_" + std::to_string( point );
+                fs << std::string( point_str );
+                fs << "{";
+
+                const PatternEllipse& FreakEllip = patternTable[index][rot * FREAK_NB_POINTS
+    + point];
+
+                fs << std::string( "center_x" ) << FreakEllip.pPatt->box.center.x;
+                fs << std::string( "center_y" ) << FreakEllip.pPatt->box.center.y;
+
+                fs << std::string( "size_w" ) << FreakEllip.pPatt->box.size.width;
+                fs << std::string( "size_h" ) << FreakEllip.pPatt->box.size.height;
+
+                fs << std::string( "angle" ) << FreakEllip.pPatt->box.angle;
+                fs << "}";
+            }
+            fs << "}";
+        }
+        fs << "}";
+    }
+    fs << "}";
+
+    fs.release( );
+*/
+    return true;
+}
+bool
+SFREAK_Impl::loadTableFromYaml( std::string filename )
+{
+    cv::FileStorage fs( filename, cv::FileStorage::READ );
+
+    if ( !fs.isOpened( ) )
+    {
+        return false;
+    }
+
+    if ( !fs["feature_type"].isNone( ) )
+    {
+        std::string sModelType;
+        fs["model_type"] >> sModelType;
+
+        if ( sModelType.compare( "FSF" ) != 0 )
+        {
+            return false;
+        }
+    }
+
+    return true;
+}
 void
 SFREAK_Impl::compute( InputArray _image, std::vector< KeyPoint >& keypoints, OutputArray _descriptors )
 {
@@ -597,7 +741,7 @@ SFREAK_Impl::compute( InputArray _image, std::vector< KeyPoint >& keypoints, Out
 
     // cv::cvtColor( image, image_color, cv::COLOR_GRAY2BGR );
 
-    ( ( SFREAK_Impl* )this )->buildPattern( );
+    //    ( ( SFREAK_Impl* )this )->buildPattern( );
 
     // Convert to gray if not already
     Mat grayImage;
@@ -927,7 +1071,8 @@ SFREAK_Impl::computeDescriptors( InputArray _image, std::vector< KeyPoint >& key
             float dist     = disOfPoints( image_center, keypoints[k].pt );
             float sinTheta = sinAngOfPoints( image_center, keypoints[k].pt, dist );
             float cosTheta = cosAngOfPoints( image_center, keypoints[k].pt, dist );
-            float theta = angOfPoints( image_center, keypoints[k].pt ) * ( 180.0 / CV_PI );
+            float theta = angOfPoints( image_center, keypoints[k].pt ) * ( 180.0 / CV_PI
+);
             int index   = int( dist );
 
             // estimate orientation (gradient)
@@ -940,10 +1085,12 @@ SFREAK_Impl::computeDescriptors( InputArray _image, std::vector< KeyPoint >& key
             {
                 int thetaIdxTmp;
                 if ( theta < 0.f )
-                    thetaIdxTmp = int( FREAK_NB_ORIENTATION * ( -theta ) * ( 1 / 360.0 ) -
+                    thetaIdxTmp = int( FREAK_NB_ORIENTATION * ( -theta ) * ( 1 / 360.0 )
+-
 0.5 );
                 else
-                    thetaIdxTmp = int( FREAK_NB_ORIENTATION * ( -theta ) * ( 1 / 360.0 ) +
+                    thetaIdxTmp = int( FREAK_NB_ORIENTATION * ( -theta ) * ( 1 / 360.0 )
++
 0.5 );
 
                 if ( thetaIdxTmp < 0 )
@@ -1000,11 +1147,13 @@ pointsValue[orientationPairs[m].j] );
 
                 if ( keypoints[k].angle < 0.f )
                     thetaIdx
-                    = int( FREAK_NB_ORIENTATION * ( -theta + keypoints[k].angle ) * ( 1 /
+                    = int( FREAK_NB_ORIENTATION * ( -theta + keypoints[k].angle ) * ( 1
+/
 360.0 ) - 0.5 );
                 else
                     thetaIdx
-                    = int( FREAK_NB_ORIENTATION * ( -theta + keypoints[k].angle ) * ( 1 /
+                    = int( FREAK_NB_ORIENTATION * ( -theta + keypoints[k].angle ) * ( 1
+/
 360.0 ) + 0.5 );
 
                 if ( thetaIdx < 0 )
@@ -1073,8 +1222,10 @@ SFREAK_Impl::meanIntensity( InputArray _image,
 {
     Mat image = _image.getMat( );
 
+    /*
     // get point position in image
-    const PatternEllipse& FreakEllip = patternTable[0][scale * FREAK_NB_ORIENTATION * FREAK_NB_POINTS //
+    const PatternEllipse& FreakEllip = patternTable[0][scale * FREAK_NB_ORIENTATION *
+FREAK_NB_POINTS //
                                                        + rot * FREAK_NB_POINTS
                                                        + point];
 
@@ -1154,50 +1305,50 @@ SFREAK_Impl::meanIntensity( InputArray _image,
         // Eigen::Vector2d p_src( xf_src, yf_src );
         // Eigen::Vector3d P_src;
         // cam->liftSphere( p_src, P_src );
-        // Eigen::Vector3d offset_P = /*q_v1v1 * */ q_v1v0 * P_src;
-        // Eigen::Vector2d offset_p;
-        // cam->spaceToPlane( offset_P, offset_p );
-        // drawPoint2Red( image_color, offset_p );
-        // drawPoint2Red( image_color, p_src );
+        // Eigen::Vector3d offset_P =   q_v1v0* P_src;
+    // Eigen::Vector2d offset_p;
+    // cam->spaceToPlane( offset_P, offset_p );
+    // drawPoint2Red( image_color, offset_p );
+    // drawPoint2Red( image_color, p_src );
 
-        std::vector< cv::Point2f > pt_ellipse;
-        for ( auto& pt : pts_circle )
+    std::vector< cv::Point2f > pt_ellipse;
+    for ( auto& pt : pts_circle )
+    {
+        Eigen::Vector2d p_src2( pt.x, pt.y );
+        Eigen::Vector3d P_src2;
+        cam->liftSphere( p_src2, P_src2 );
+
+        Eigen::Vector3d offset_P2 = q_v1v0 * P_src2;
+
+        Eigen::Vector2d offset_p2;
+        cam->spaceToPlane( offset_P2, offset_p2 );
+        // drawPoint2Yellow( image_color, offset_p2 );
+
+        pt_ellipse.push_back( cv::Point2f( offset_p2( 0 ), offset_p2( 1 ) ) );
+    }
+
+    Ellipse ellip;
+    ellip.fit( pt_ellipse );
+    //        ellip.draw( image_color, cv::Scalar( 255, 255, 0 ) );
+
+    cv::Rect rect = ellip.box.boundingRect( );
+    for ( int row_id = 0; row_id < rect.height; ++row_id )
+        for ( int col_id = 0; col_id < rect.width; ++col_id )
         {
-            Eigen::Vector2d p_src2( pt.x, pt.y );
-            Eigen::Vector3d P_src2;
-            cam->liftSphere( p_src2, P_src2 );
-
-            Eigen::Vector3d offset_P2 = q_v1v0 * P_src2;
-
-            Eigen::Vector2d offset_p2;
-            cam->spaceToPlane( offset_P2, offset_p2 );
-            // drawPoint2Yellow( image_color, offset_p2 );
-
-            pt_ellipse.push_back( cv::Point2f( offset_p2( 0 ), offset_p2( 1 ) ) );
+            cv::Point2f pt( col_id + rect.x, row_id + rect.y );
+            if ( ellip.inside( pt ) )
+            {
+                _sum += image.at< imgType >( pt );
+                _num++;
+                // image_color.at< cv::Vec3b >( pt ) = cv::Vec3b( 0, 255, 255 );
+            }
         }
 
-        Ellipse ellip;
-        ellip.fit( pt_ellipse );
-        //        ellip.draw( image_color, cv::Scalar( 255, 255, 0 ) );
+    iiType ret_val;
+    ret_val = iiType( _sum / _num );
 
-        cv::Rect rect = ellip.box.boundingRect( );
-        for ( int row_id = 0; row_id < rect.height; ++row_id )
-            for ( int col_id = 0; col_id < rect.width; ++col_id )
-            {
-                cv::Point2f pt( col_id + rect.x, row_id + rect.y );
-                if ( ellip.inside( pt ) )
-                {
-                    _sum += image.at< imgType >( pt );
-                    _num++;
-                    // image_color.at< cv::Vec3b >( pt ) = cv::Vec3b( 0, 255, 255 );
-                }
-            }
-
-        iiType ret_val;
-        ret_val = iiType( _sum / _num );
-
-        return static_cast< imgType >( ret_val );
-    }
+    return static_cast< imgType >( ret_val );
+}*/
 }
 
 template< typename imgType, typename iiType >
@@ -1215,15 +1366,27 @@ SFREAK_Impl::meanIntensityTable( InputArray _image,
 {
     Mat image = _image.getMat( );
 
+    cv::Vec5f param = m_tableOffsets.at< cv::Vec5f >( index,
+                                                      scale * FREAK_NB_ORIENTATION * FREAK_NB_POINTS //
+                                                      + rot * FREAK_NB_POINTS
+                                                      + point );
+
+    float cx  = param[0];
+    float cy  = param[1];
+    float sw  = param[2];
+    float sh  = param[3];
+    float ang = param[4];
+
     // get point position in image
-    const PatternEllipse& FreakEllip = patternTable[index][scale * FREAK_NB_ORIENTATION * FREAK_NB_POINTS //
-                                                           + rot * FREAK_NB_POINTS
-                                                           + point];
+    // const PatternEllipse& FreakEllip = patternTable[index][scale * FREAK_NB_ORIENTATION *
+    // FREAK_NB_POINTS //
+    //                                                       + rot * FREAK_NB_POINTS
+    //                                                       + point];
 
     Eigen::Matrix2f R;
     R << cosTheta, -sinTheta, sinTheta, cosTheta;
 
-    Eigen::Vector2f pt_v( FreakEllip.pPatt->box.center.x, FreakEllip.pPatt->box.center.y );
+    Eigen::Vector2f pt_v( cx, cy );
     Eigen::Vector2f pt_2 = R * pt_v;
 
     const float xf = pt_2( 0 ) + kp_x;
@@ -1233,8 +1396,8 @@ SFREAK_Impl::meanIntensityTable( InputArray _image,
     const int y = int( yf );
 
     // calculate output:
-    if ( FreakEllip.pPatt->box.size.width < 0.5 //
-         || FreakEllip.pPatt->box.size.height < 0.5 )
+    if ( sw < 0.5 //
+         || sh < 0.5 )
     {
         // interpolation multipliers:
         const int r_x   = static_cast< int >( ( xf - x ) * 1024 );
@@ -1260,9 +1423,7 @@ SFREAK_Impl::meanIntensityTable( InputArray _image,
         int _num   = 0;
 
         // NOTE
-        Ellipse ell( cv::Point2f( xf, yf ),
-                     FreakEllip.pPatt->box.size,
-                     FreakEllip.pPatt->box.angle + theta );
+        Ellipse ell( cv::Point2f( xf, yf ), cv::Size2f( sw, sh ), ang + theta );
         // ell.draw( image_color, cv::Scalar( color_rand1, color_rand2, color_rand3 ) );
 
         cv::Rect rect = ell.box.boundingRect( );

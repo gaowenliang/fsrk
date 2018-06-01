@@ -122,6 +122,13 @@ detectFREAK( Mat& img1, Mat& img2, vector< KeyPoint >& kp1, vector< KeyPoint >& 
 
     std::cout << "/////////////////////////////////////// \n";
     std::cout << "/////////////////////////////////////// \n";
+    freak2->buildOffsetsTable( );
+    freak2->saveTable2Data( "/home/gao/fsf_data2" );
+    //    freak2->saveTable2Yaml( "/home/gao/fsf_freak2.yaml" );
+
+    freak->buildOffsetsTable( );
+    freak->saveTable2Data( "/home/gao/fsf_data" );
+    //    freak->saveTable2Yaml( "/home/gao/fsf_freak.yaml" );
 
     freak->compute( img1, kp1, des1 );
 

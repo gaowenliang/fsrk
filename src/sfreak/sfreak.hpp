@@ -164,15 +164,16 @@ class CV_EXPORTS_W SFREAK : public Feature2D
         }
     }
 
-    void buildOffsetsTable( );
-    bool saveOffsetsTable( std::string path );
-    bool loadOffsetsTable( std::string path );
+    virtual void buildOffsetsTable( )                      = 0;
+    virtual bool saveTable2Yaml( std::string path )        = 0;
+    virtual bool loadTableFromYaml( std::string path )     = 0;
+    virtual bool saveTable2Data( std::string filename )    = 0;
+    virtual bool loadTableFromData( std::string filename ) = 0;
 
     public:
     cv::Point2f image_center;
     int pixel_size;
     camera_model::CameraPtr cam;
-    cv::Mat m_tableOffsets;
     cv::Mat m_mask;
 };
 }
