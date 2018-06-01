@@ -93,38 +93,10 @@ class CV_EXPORTS_W SFREAK : public Feature2D
                                  int nOctaves                            = 4,
                                  const std::vector< int >& selectedPairs = std::vector< int >( ) );
 
-    bool loadCamera( std::string cam_file )
-    {
-        std::cout << "#INFO: camera config is " << cam_file << std::endl;
-        cam = camera_model::CameraFactory::instance( )->generateCameraFromYamlFile( cam_file );
-
-        std::cout << cam->parametersToString( ) << std::endl;
-        image_center = cam->getPrinciple( );
-        std::cout << "#INFO: LOADing camera config is DONE." << cam_file << std::endl;
-        return true;
-    }
-    bool loadMask( std::string file )
-    {
-        m_mask = cv::imread( file, cv::IMREAD_GRAYSCALE );
-        return true;
-    }
-    bool loadMask( )
-    {
-        m_mask = cv::Mat( cam->imageHeight( ), cam->imageWidth( ), CV_8UC1, cv::Scalar( 255 ) );
-        return true;
-    }
-    Eigen::Vector2d calcAngle( const camera_model::CameraPtr cam, const Eigen::Vector2d pu )
-    {
-        Eigen::Vector3d P;
-        cam->liftSphere( pu, P );
-
-        double theta = acos( P( 2 ) / P.norm( ) );
-        double phi   = atan2( P( 1 ), P( 0 ) );
-
-        Eigen::Vector2d angle( theta, phi );
-
-        return angle;
-    }
+    bool loadCamera( std::string cam_file );
+    bool loadMask( std::string file );
+    bool loadMask( );
+    Eigen::Vector2d calcAngle( const camera_model::CameraPtr cam, const Eigen::Vector2d pu );
 
     virtual void buildOffsetsTable( )                      = 0;
     virtual bool saveTable2Data( std::string filename )    = 0;

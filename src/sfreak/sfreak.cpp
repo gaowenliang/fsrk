@@ -1328,24 +1328,27 @@ SFREAK_Impl::meanIntensity( InputArray _image,
 {
     Mat image = _image.getMat( );
 
-    /*
     // get point position in image
-    const PatternEllipse& FreakEllip = patternTable[0][scale * FREAK_NB_ORIENTATION *
-FREAK_NB_POINTS //
-                                                       + rot * FREAK_NB_POINTS
-                                                       + point];
 
-    const float xf = FreakEllip.pPatt->box.center.x + kp_x;
-    const float yf = FreakEllip.pPatt->box.center.y + kp_y;
+    cv::Vec5f param = m_tableOffsets.at< cv::Vec5f >( 0,
+                                                      scale * FREAK_NB_ORIENTATION * FREAK_NB_POINTS //
+                                                      + rot * FREAK_NB_POINTS
+                                                      + point );
+
+    const float cx  = param[0];
+    const float cy  = param[1];
+    const float sw  = param[2];
+    const float sh  = param[3];
+    const float ang = param[4];
+
+    const float xf = cx + kp_x;
+    const float yf = cy + kp_y;
 
     const int x = int( xf );
     const int y = int( yf );
 
-    // get the sigma:
-    const float radius = FreakEllip.pPatt->box.size.width;
-
     // calculate output:
-    if ( radius < 0.5 )
+    if ( sw < 0.5 || sh < 0.5 )
     {
         // interpolation multipliers:
         const int r_x   = static_cast< int >( ( xf - x ) * 1024 );
@@ -1371,11 +1374,10 @@ FREAK_NB_POINTS //
         float _sum = 0;
         int _num   = 0;
 
-        const float xf_src = FreakEllip.pPatt->box.center.x + image_center.x;
-        const float yf_src = FreakEllip.pPatt->box.center.y + image_center.y;
+        const float xf_src = cx + image_center.x;
+        const float yf_src = cy + image_center.y;
 
-        cv::CircleInt cirle( Point( xf_src, yf_src ), int( radius ) );
-        //        cirle.draw( image_color, cv::Scalar( 0, 255, 255 ) );
+        cv::CircleInt cirle( Point( xf_src, yf_src ), int( sw ) );
         std::vector< cv::Point2f > pts_circle = cirle.getCirclePoints( cam->imageSize( ) );
 
         // src pt
@@ -1403,58 +1405,42 @@ FREAK_NB_POINTS //
                                    sin( 0.5 * delta_angle ) * dVector( 1 ),
                                    sin( 0.5 * delta_angle ) * dVector( 2 ) );
 
-        // Eigen::Quaterniond q_v1v1( cos( 0.5 * angle_center( 1 ) ),
-        //                            sin( 0.5 * angle_center( 1 ) ) * P_center2( 0 ),
-        //                            sin( 0.5 * angle_center( 1 ) ) * P_center2( 1 ),
-        //                            sin( 0.5 * angle_center( 1 ) ) * P_center2( 2 ) );
-
-        // Eigen::Vector2d p_src( xf_src, yf_src );
-        // Eigen::Vector3d P_src;
-        // cam->liftSphere( p_src, P_src );
-        // Eigen::Vector3d offset_P =   q_v1v0* P_src;
-    // Eigen::Vector2d offset_p;
-    // cam->spaceToPlane( offset_P, offset_p );
-    // drawPoint2Red( image_color, offset_p );
-    // drawPoint2Red( image_color, p_src );
-
-    std::vector< cv::Point2f > pt_ellipse;
-    for ( auto& pt : pts_circle )
-    {
-        Eigen::Vector2d p_src2( pt.x, pt.y );
-        Eigen::Vector3d P_src2;
-        cam->liftSphere( p_src2, P_src2 );
-
-        Eigen::Vector3d offset_P2 = q_v1v0 * P_src2;
-
-        Eigen::Vector2d offset_p2;
-        cam->spaceToPlane( offset_P2, offset_p2 );
-        // drawPoint2Yellow( image_color, offset_p2 );
-
-        pt_ellipse.push_back( cv::Point2f( offset_p2( 0 ), offset_p2( 1 ) ) );
-    }
-
-    Ellipse ellip;
-    ellip.fit( pt_ellipse );
-    //        ellip.draw( image_color, cv::Scalar( 255, 255, 0 ) );
-
-    cv::Rect rect = ellip.box.boundingRect( );
-    for ( int row_id = 0; row_id < rect.height; ++row_id )
-        for ( int col_id = 0; col_id < rect.width; ++col_id )
+        std::vector< cv::Point2f > pt_ellipse;
+        for ( auto& pt : pts_circle )
         {
-            cv::Point2f pt( col_id + rect.x, row_id + rect.y );
-            if ( ellip.inside( pt ) )
-            {
-                _sum += image.at< imgType >( pt );
-                _num++;
-                // image_color.at< cv::Vec3b >( pt ) = cv::Vec3b( 0, 255, 255 );
-            }
+            Eigen::Vector2d p_src2( pt.x, pt.y );
+            Eigen::Vector3d P_src2;
+            cam->liftSphere( p_src2, P_src2 );
+
+            Eigen::Vector3d offset_P2 = q_v1v0 * P_src2;
+
+            Eigen::Vector2d offset_p2;
+            cam->spaceToPlane( offset_P2, offset_p2 );
+
+            pt_ellipse.push_back( cv::Point2f( offset_p2( 0 ), offset_p2( 1 ) ) );
         }
 
-    iiType ret_val;
-    ret_val = iiType( _sum / _num );
+        Ellipse ellip;
+        ellip.fit( pt_ellipse );
+        //        ellip.draw( image_color, cv::Scalar( 255, 255, 0 ) );
 
-    return static_cast< imgType >( ret_val );
-}*/
+        cv::Rect rect = ellip.box.boundingRect( );
+        for ( int row_id = 0; row_id < rect.height; ++row_id )
+            for ( int col_id = 0; col_id < rect.width; ++col_id )
+            {
+                cv::Point2f pt( col_id + rect.x, row_id + rect.y );
+                if ( ellip.inside( pt ) )
+                {
+                    _sum += image.at< imgType >( pt );
+                    _num++;
+                }
+            }
+
+        iiType ret_val;
+        ret_val = iiType( _sum / _num );
+
+        return static_cast< imgType >( ret_val );
+    }
 }
 
 template< typename imgType, typename iiType >
@@ -1729,6 +1715,49 @@ SFREAK::create( std::string cam_file,
                                    patternScale,
                                    nOctaves,
                                    selectedPairs );
+}
+
+bool
+SFREAK::loadCamera( std::string cam_file )
+{
+    std::cout << "#INFO: camera config is " << cam_file << std::endl;
+    cam = camera_model::CameraFactory::instance( )->generateCameraFromYamlFile( cam_file );
+
+    std::cout << cam->parametersToString( ) << std::endl;
+    image_center = cam->getPrinciple( );
+    std::cout << "#INFO: LOADing camera config is DONE." << cam_file << std::endl;
+
+    return true;
+}
+
+bool
+SFREAK::loadMask( std::string file )
+{
+    m_mask = cv::imread( file, cv::IMREAD_GRAYSCALE );
+
+    return true;
+}
+
+bool
+SFREAK::loadMask( )
+{
+    m_mask = cv::Mat( cam->imageHeight( ), cam->imageWidth( ), CV_8UC1, cv::Scalar( 255 ) );
+
+    return true;
+}
+
+Eigen::Vector2d
+SFREAK::calcAngle( const camera_model::CameraPtr cam, const Eigen::Vector2d pu )
+{
+    Eigen::Vector3d P;
+    cam->liftSphere( pu, P );
+
+    double theta = acos( P( 2 ) / P.norm( ) );
+    double phi   = atan2( P( 1 ), P( 0 ) );
+
+    Eigen::Vector2d angle( theta, phi );
+
+    return angle;
 }
 
 } // END NAMESPACE CV
