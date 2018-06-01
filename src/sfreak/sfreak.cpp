@@ -111,7 +111,7 @@ class SFREAK_Impl : public SFREAK
 
     protected:
     void buildPattern( );
-    void loadPattern( );
+    bool loadPattern( );
 
     template< typename imgType, typename iiType >
     imgType meanIntensity( InputArray image,
@@ -263,11 +263,7 @@ SFREAK_Impl::loadTableFromData( std::string filename )
         return false;
     }
 
-    pixel_size = m_tableOffsets.rows;
-
-    loadPattern( );
-
-    return true;
+    return loadPattern( );
 }
 
 // int color_rand1;
@@ -355,15 +351,11 @@ SFREAK_Impl::buildPattern( )
 
 #ifdef Table
 
-    m_tableOffsets
-    = cv::Mat( pixel_size, FREAK_NB_ORIENTATION * FREAK_NB_POINTS, CV_32FC5, cv::Scalar( 0 ) );
+    m_tableOffsets = cv::Mat( pixel_size, //
+                              FREAK_NB_ORIENTATION * FREAK_NB_POINTS,
+                              CV_32FC5,
+                              cv::Scalar( 0 ) );
 
-    // patternTable.resize( pixel_size );
-    // for ( int index = 0; index < pixel_size; ++index )
-    // {
-    //     patternTable[index].resize( FREAK_NB_SCALES * FREAK_NB_ORIENTATION *
-    //     FREAK_NB_POINTS );
-    // }
     std::cout << "[#Debug] patternTable size: " << m_tableOffsets.size( ) << "\n\n\n";
 #endif
     // 2 ^ ( (nOctaves-1) /nbScales)
@@ -538,15 +530,15 @@ SFREAK_Impl::buildPattern( )
 
     // build the list of orientation pairs
     // clang-format off
-       orientationPairs[0].i = 0;      orientationPairs[0].j = 3;
-       orientationPairs[1].i = 1;      orientationPairs[1].j = 4;
-       orientationPairs[2].i = 2;      orientationPairs[2].j = 5;
-       orientationPairs[3].i = 0;      orientationPairs[3].j = 2;
-       orientationPairs[4].i = 1;      orientationPairs[4].j = 3;
-       orientationPairs[5].i = 2;      orientationPairs[5].j = 4;
-       orientationPairs[6].i = 3;      orientationPairs[6].j = 5;
-       orientationPairs[7].i = 4;      orientationPairs[7].j = 0;
-       orientationPairs[8].i = 5;      orientationPairs[8].j = 1;
+       orientationPairs[0].i  = 0;     orientationPairs[0].j  = 3;
+       orientationPairs[1].i  = 1;     orientationPairs[1].j  = 4;
+       orientationPairs[2].i  = 2;     orientationPairs[2].j  = 5;
+       orientationPairs[3].i  = 0;     orientationPairs[3].j  = 2;
+       orientationPairs[4].i  = 1;     orientationPairs[4].j  = 3;
+       orientationPairs[5].i  = 2;     orientationPairs[5].j  = 4;
+       orientationPairs[6].i  = 3;     orientationPairs[6].j  = 5;
+       orientationPairs[7].i  = 4;     orientationPairs[7].j  = 0;
+       orientationPairs[8].i  = 5;     orientationPairs[8].j  = 1;
        orientationPairs[9].i  = 6;     orientationPairs[9].j  = 9;
        orientationPairs[10].i = 7;     orientationPairs[10].j = 10;
        orientationPairs[11].i = 8;     orientationPairs[11].j = 11;
@@ -592,12 +584,6 @@ SFREAK_Impl::buildPattern( )
 
         const float dx = param_i[0] - param_j[0];
         const float dy = param_i[1] - param_j[1];
-
-        // const float dx = patternTable[0][orientationPairs[m].i].pPatt->box.center.x
-        //                  - patternTable[0][orientationPairs[m].j].pPatt->box.center.x;
-        //
-        // const float dy = patternTable[0][orientationPairs[m].i].pPatt->box.center.y
-        //                  - patternTable[0][orientationPairs[m].j].pPatt->box.center.y;
 
         const float norm_sq = ( dx * dx + dy * dy );
 
@@ -645,13 +631,9 @@ SFREAK_Impl::buildPattern( )
     //    drawPattern( );
 }
 
-void
+bool
 SFREAK_Impl::loadPattern( )
 {
-    if ( patternScale == patternScale0 //
-         && nOctaves == nOctaves0 )
-        return;
-
     nOctaves0     = nOctaves;
     patternScale0 = patternScale;
 
@@ -671,7 +653,16 @@ SFREAK_Impl::loadPattern( )
 
     int pixel_tmp = std::max( std::max( pixels_size[0], pixels_size[1] ),
                               std::max( pixels_size[2], pixels_size[3] ) );
-    std::cout << "pixel_size " << pixel_size << " " << pixel_tmp << "\n";
+
+    pixel_size = m_tableOffsets.rows;
+
+    if ( pixel_tmp != pixel_size )
+    {
+        std::cout << "[#INFO] Table Size error !!!\n";
+        return false;
+    }
+    else
+        std::cout << "pixel_size " << pixel_size << " " << pixel_tmp << "\n";
 
     // 2 ^ ( (nOctaves-1) /nbScales)
     double scaleStep = std::pow( 2.0, ( double )( nOctaves ) / FREAK_NB_SCALES );
@@ -708,7 +699,6 @@ SFREAK_Impl::loadPattern( )
                               radius[5] / 2.0, //
                               radius[6] / 2.0, //
                               radius[6] / 2.0 };
-#ifdef Table
 
     // fill the lookup table
     for ( int index = 0; index < pixel_size; ++index )
@@ -728,7 +718,6 @@ SFREAK_Impl::loadPattern( )
                     // 6 circles per group
                     for ( int k = 0; k < n[i]; ++k )
                     {
-
                         // adapt the sizeList if necessary
                         const int sizeMax
                         = static_cast< int >( ceil( ( radius[i] + sigma[i] ) * scalingFactor * patternScale ) )
@@ -741,22 +730,21 @@ SFREAK_Impl::loadPattern( )
             }
         }
     }
-#endif
 
     // cv::imshow( "image_color_src", image_color );
     // cv::waitKey( 0 );
 
     // build the list of orientation pairs
     // clang-format off
-     orientationPairs[0].i = 0;      orientationPairs[0].j = 3;
-     orientationPairs[1].i = 1;      orientationPairs[1].j = 4;
-     orientationPairs[2].i = 2;      orientationPairs[2].j = 5;
-     orientationPairs[3].i = 0;      orientationPairs[3].j = 2;
-     orientationPairs[4].i = 1;      orientationPairs[4].j = 3;
-     orientationPairs[5].i = 2;      orientationPairs[5].j = 4;
-     orientationPairs[6].i = 3;      orientationPairs[6].j = 5;
-     orientationPairs[7].i = 4;      orientationPairs[7].j = 0;
-     orientationPairs[8].i = 5;      orientationPairs[8].j = 1;
+     orientationPairs[0].i  = 0;     orientationPairs[0].j  = 3;
+     orientationPairs[1].i  = 1;     orientationPairs[1].j  = 4;
+     orientationPairs[2].i  = 2;     orientationPairs[2].j  = 5;
+     orientationPairs[3].i  = 0;     orientationPairs[3].j  = 2;
+     orientationPairs[4].i  = 1;     orientationPairs[4].j  = 3;
+     orientationPairs[5].i  = 2;     orientationPairs[5].j  = 4;
+     orientationPairs[6].i  = 3;     orientationPairs[6].j  = 5;
+     orientationPairs[7].i  = 4;     orientationPairs[7].j  = 0;
+     orientationPairs[8].i  = 5;     orientationPairs[8].j  = 1;
      orientationPairs[9].i  = 6;     orientationPairs[9].j  = 9;
      orientationPairs[10].i = 7;     orientationPairs[10].j = 10;
      orientationPairs[11].i = 8;     orientationPairs[11].j = 11;
@@ -845,6 +833,8 @@ SFREAK_Impl::loadPattern( )
             descriptionPairs[i] = allPairs[FREAK_DEF_PAIRS[i]];
         }
     }
+
+    return true;
 }
 
 void
@@ -853,35 +843,6 @@ SFREAK_Impl::buildOffsetsTable( )
     ( ( SFREAK_Impl* )this )->buildPattern( );
 }
 
-bool
-SFREAK_Impl::saveTable2Yaml( std::string filename )
-{
-
-    return true;
-}
-bool
-SFREAK_Impl::loadTableFromYaml( std::string filename )
-{
-    cv::FileStorage fs( filename, cv::FileStorage::READ );
-
-    if ( !fs.isOpened( ) )
-    {
-        return false;
-    }
-
-    if ( !fs["feature_type"].isNone( ) )
-    {
-        std::string sModelType;
-        fs["model_type"] >> sModelType;
-
-        if ( sModelType.compare( "FSF" ) != 0 )
-        {
-            return false;
-        }
-    }
-
-    return true;
-}
 void
 SFREAK_Impl::compute( InputArray _image, std::vector< KeyPoint >& keypoints, OutputArray _descriptors )
 {
@@ -982,11 +943,6 @@ disOfPoints( cv::Point2f pt0, cv::Point2f pt1 )
 {
     return std::sqrt( ( pt0.x - pt1.x ) * ( pt0.x - pt1.x )
                       + ( pt0.y - pt1.y ) * ( pt0.y - pt1.y ) );
-}
-float
-tanAngOfPoints( cv::Point2f pt0, cv::Point2f pt1 )
-{
-    return ( pt1.y - pt0.y ) / ( pt1.x - pt0.x );
 }
 float
 sinAngOfPoints( cv::Point2f pt0, cv::Point2f pt1, float dis )
@@ -1518,22 +1474,17 @@ SFREAK_Impl::meanIntensityTable( InputArray _image,
 {
     Mat image = _image.getMat( );
 
+    // get point position in image
     cv::Vec5f param = m_tableOffsets.at< cv::Vec5f >( index,
                                                       scale * FREAK_NB_ORIENTATION * FREAK_NB_POINTS //
                                                       + rot * FREAK_NB_POINTS
                                                       + point );
 
-    float cx  = param[0];
-    float cy  = param[1];
-    float sw  = param[2];
-    float sh  = param[3];
-    float ang = param[4];
-
-    // get point position in image
-    // const PatternEllipse& FreakEllip = patternTable[index][scale * FREAK_NB_ORIENTATION *
-    // FREAK_NB_POINTS //
-    //                                                       + rot * FREAK_NB_POINTS
-    //                                                       + point];
+    const float cx  = param[0];
+    const float cy  = param[1];
+    const float sw  = param[2];
+    const float sh  = param[3];
+    const float ang = param[4];
 
     Eigen::Matrix2f R;
     R << cosTheta, -sinTheta, sinTheta, cosTheta;
