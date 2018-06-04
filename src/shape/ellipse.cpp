@@ -81,11 +81,21 @@ static const float SinTable[]
     1.0000000f };
 
 static void
-sincos( int angle, float& cosval, float& sinval )
+sincosTable( int angle, float& cosval, float& sinval )
 {
     angle += ( angle < 0 ? 360 : 0 );
-    sinval = SinTable[angle];
-    cosval = SinTable[450 - angle];
+    sinval = SinTable[angle];       // sin theta
+    cosval = SinTable[450 - angle]; // cos theta
+}
+
+static void
+sincos( int angle, float& cosval, float& sinval )
+{
+    double _angle = angle * 0.0174532925; // degree to rad
+
+    // with Intel x86 fsincos
+    sinval = sin( _angle );
+    cosval = cos( _angle );
 }
 
 cv::Ellipse::Ellipse( const cv::Ellipse& ell_in )
@@ -96,16 +106,19 @@ cv::Ellipse::Ellipse( const cv::Ellipse& ell_in )
 
     focalLengthHalf = std::sqrt( axisHalfLong * axisHalfLong - axisHalfShort * axisHalfShort );
 
-    double _angle;
+    int _angle;
     if ( box.size.width > box.size.height )
-        _angle = CV_PI - box.angle * CV_PI / 180.;
+        _angle = 180 - box.angle;
     else
-        _angle = CV_PI / 2 - box.angle * CV_PI / 180.;
+        _angle = 90 - box.angle;
 
-    focalPoint0 = cv::Point2f( box.center.x + focalLengthHalf * ( float )cos( _angle ),
-                               box.center.y - focalLengthHalf * ( float )sin( _angle ) );
-    focalPoint1 = cv::Point2f( box.center.x - focalLengthHalf * ( float )cos( _angle ),
-                               box.center.y + focalLengthHalf * ( float )sin( _angle ) );
+    float cosval, sinval;
+    sincos( _angle, cosval, sinval );
+
+    focalPoint0 = cv::Point2f( box.center.x + focalLengthHalf * cosval,
+                               box.center.y - focalLengthHalf * sinval );
+    focalPoint1 = cv::Point2f( box.center.x - focalLengthHalf * cosval,
+                               box.center.y + focalLengthHalf * sinval );
 }
 
 cv::Ellipse::Ellipse( const cv::RectRot& _box )
@@ -116,16 +129,19 @@ cv::Ellipse::Ellipse( const cv::RectRot& _box )
 
     focalLengthHalf = std::sqrt( axisHalfLong * axisHalfLong - axisHalfShort * axisHalfShort );
 
-    double _angle;
+    int _angle;
     if ( box.size.width > box.size.height )
-        _angle = CV_PI - box.angle * CV_PI / 180.;
+        _angle = 180 - box.angle;
     else
-        _angle = CV_PI / 2 - box.angle * CV_PI / 180.;
+        _angle = 90 - box.angle;
 
-    focalPoint0 = cv::Point2f( box.center.x + focalLengthHalf * ( float )cos( _angle ),
-                               box.center.y - focalLengthHalf * ( float )sin( _angle ) );
-    focalPoint1 = cv::Point2f( box.center.x - focalLengthHalf * ( float )cos( _angle ),
-                               box.center.y + focalLengthHalf * ( float )sin( _angle ) );
+    float cosval, sinval;
+    sincos( _angle, cosval, sinval );
+
+    focalPoint0 = cv::Point2f( box.center.x + focalLengthHalf * cosval,
+                               box.center.y - focalLengthHalf * sinval );
+    focalPoint1 = cv::Point2f( box.center.x - focalLengthHalf * cosval,
+                               box.center.y + focalLengthHalf * sinval );
 }
 
 cv::Ellipse::Ellipse( const cv::Point2f& center, const cv::Size2f& size, float angle )
@@ -136,16 +152,19 @@ cv::Ellipse::Ellipse( const cv::Point2f& center, const cv::Size2f& size, float a
 
     focalLengthHalf = std::sqrt( axisHalfLong * axisHalfLong - axisHalfShort * axisHalfShort );
 
-    double _angle;
+    int _angle;
     if ( box.size.width > box.size.height )
-        _angle = CV_PI - box.angle * CV_PI / 180.;
+        _angle = 180 - box.angle;
     else
-        _angle = CV_PI / 2 - box.angle * CV_PI / 180.;
+        _angle = 90 - box.angle;
 
-    focalPoint0 = cv::Point2f( box.center.x + focalLengthHalf * ( float )cos( _angle ),
-                               box.center.y - focalLengthHalf * ( float )sin( _angle ) );
-    focalPoint1 = cv::Point2f( box.center.x - focalLengthHalf * ( float )cos( _angle ),
-                               box.center.y + focalLengthHalf * ( float )sin( _angle ) );
+    float cosval, sinval;
+    sincos( _angle, cosval, sinval );
+
+    focalPoint0 = cv::Point2f( box.center.x + focalLengthHalf * cosval,
+                               box.center.y - focalLengthHalf * sinval );
+    focalPoint1 = cv::Point2f( box.center.x - focalLengthHalf * cosval,
+                               box.center.y + focalLengthHalf * sinval );
 }
 
 float
@@ -330,7 +349,7 @@ cv::Ellipse::draw( InputOutputArray _img, const cv::Scalar& color )
                   delta,
                   _v );
 
-    for ( int index = 0; index < _v.size( ) - 1; ++index )
+    for ( size_t index = 0; index < _v.size( ) - 1; ++index )
     {
         LineIterator iterator( img, _v[index], _v[index + 1], 8, true );
         const uchar* _color = ( const uchar* )buf;

@@ -145,21 +145,25 @@ detectFREAK( Mat& img1, Mat& img2, vector< KeyPoint >& kp1, vector< KeyPoint >& 
 
     t = getTickCount( );
 
-    freak->compute( img1, kp1, des1 );
+    int time = 10;
+
+    for ( int i = 0; i < time; ++i )
+        freak->compute( img1, kp1, des1 );
 
     t = ( ( double )getTickCount( ) - t ) / getTickFrequency( );
-    std::cout << kp1.size( ) << " cost " << t * 1000 << " ms" << std::endl;
-    std::cout << " pt avg " << t * 1000 / kp1.size( ) << " ms" << std::endl;
-
-    std::cout << "[#INFO] image 1 process done.  \n";
+    std::cout << std::endl
+              << kp1.size( ) << " cost " << t * 1000 / time << " ms" << std::endl;
+    std::cout << " pt avg " << t * 1000 / kp1.size( ) / time << " ms" << std::endl;
 
     t = getTickCount( );
 
-    freak2->compute( img2, kp2, des2 );
+    for ( int i = 0; i < time; ++i )
+        freak2->compute( img2, kp2, des2 );
 
     t = ( ( double )getTickCount( ) - t ) / getTickFrequency( );
-    std::cout << kp2.size( ) << " cost " << t * 1000 << " ms" << std::endl;
-    std::cout << " pt avg " << t * 1000 / kp2.size( ) << " ms" << std::endl;
+    std::cout << kp2.size( ) << " cost " << t * 1000 / time << " ms" << std::endl;
+    std::cout << " pt avg " << t * 1000 / kp2.size( ) / time << " ms" << std::endl
+              << std::endl;
 
     std::cout << "[#INFO] image 2 process done.  \n";
 

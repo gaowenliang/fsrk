@@ -45,9 +45,6 @@
 namespace cv
 {
 
-// int color_rand1;
-// int color_rand2;
-// int color_rand3;
 // Mat image_color;
 
 // create an image showing the brisk pattern
