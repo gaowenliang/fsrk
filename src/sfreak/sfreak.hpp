@@ -98,9 +98,9 @@ class CV_EXPORTS_W SFREAK : public Feature2D
     bool loadMask( );
     Eigen::Vector2d calcAngle( const camera_model::CameraPtr cam, const Eigen::Vector2d pu );
 
-    virtual void buildOffsetsTable( )                      = 0;
-    virtual bool saveTable2Data( std::string filename )    = 0;
-    virtual bool loadTableFromData( std::string filename ) = 0;
+    virtual void buildPatternTable( )                             = 0;
+    virtual bool savePatternTableToData( std::string filename )   = 0;
+    virtual bool loadPatternTableFromData( std::string filename ) = 0;
 
     public:
     cv::Point2f image_center;

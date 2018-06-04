@@ -125,22 +125,22 @@ detectFREAK( Mat& img1, Mat& img2, vector< KeyPoint >& kp1, vector< KeyPoint >& 
     std::cout << "/////////////////////////////////////// \n";
     if ( 0 )
     {
-        freak2->buildOffsetsTable( );
-        freak2->saveTable2Data( "/home/gao/fsrk_f" );
+        freak2->buildPatternTable( );
+        freak2->savePatternTableToData( "/home/gao/ws/src/fsrk/cfg/fsrk_f" );
     }
     else
     {
-        freak2->loadTableFromData( "/home/gao/fsrk_f" );
+        freak2->loadPatternTableFromData( "/home/gao/ws/src/fsrk/cfg/fsrk_f" );
     }
 
     if ( 0 )
     {
-        freak->buildOffsetsTable( );
-        freak->saveTable2Data( "/home/gao/fsrk_down" );
+        freak->buildPatternTable( );
+        freak->savePatternTableToData( "/home/gao/ws/src/fsrk/cfg/fsrk_down" );
     }
     else
     {
-        freak->loadTableFromData( "/home/gao/fsrk_down" );
+        freak->loadPatternTableFromData( "/home/gao/ws/src/fsrk/cfg/fsrk_down" );
     }
 
     t = getTickCount( );

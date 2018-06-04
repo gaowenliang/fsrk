@@ -50,6 +50,7 @@ set(agast_LIB_SOURCE_FILES
     ${PROJECT_SOURCE_DIR}/src/sagast/offsets/getOffsets.cpp
 )
 set(sfreak_LIB_SOURCE_FILES
+    ${PROJECT_SOURCE_DIR}/src/sfreak/sfreak_impl.cpp
     ${PROJECT_SOURCE_DIR}/src/sfreak/sfreak.cpp
     ${PROJECT_SOURCE_DIR}/src/shape/circle.cpp
     ${PROJECT_SOURCE_DIR}/src/shape/ellipse.cpp
