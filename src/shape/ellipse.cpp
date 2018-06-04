@@ -93,7 +93,8 @@ sincos( int angle, float& cosval, float& sinval )
 {
     double _angle = angle * 0.0174532925; // degree to rad
 
-    // with Intel x86 fsincos
+    // For Intel x86 CPUs, the process is fast with function 'fsincos'.
+    // Need not to use Look up table while using Intel x86 CPUs.
     sinval = sin( _angle );
     cosval = cos( _angle );
 }
