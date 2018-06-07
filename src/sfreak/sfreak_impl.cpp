@@ -216,9 +216,17 @@ cv::SFREAK_Impl::buildPattern( )
                         float center_c_y = center_y + image_center.y;
                         float radius_c = static_cast< float >( sigma[i] * scalingFactor * patternScale );
 
-                        cv::CircleInt cirle( Point( center_c_x, center_c_y ), int( radius_c ) );
                         std::vector< cv::Point2f > pts_circle;
-                        pts_circle = cirle.getCirclePoints( cam->imageSize( ) );
+                        if ( radius_c > 2 )
+                        {
+                            cv::CircleInt cirle( Point( center_c_x, center_c_y ), int( radius_c ) );
+                            pts_circle = cirle.getCirclePoints( cam->imageSize( ) );
+                        }
+                        else if ( radius_c <= 2 )
+                        {
+                            cv::Circlef cirle( Point2f( center_c_x, center_c_y ), float( radius_c ) );
+                            pts_circle = cirle.getCirclePoints( cam->imageSize( ) );
+                        }
 
                         // src pt
                         Eigen::Vector2d p_u00( image_center.x, image_center.y );
@@ -284,11 +292,13 @@ cv::SFREAK_Impl::buildPattern( )
                              && ellip->box.size.height < 1 )
                         {
 
+                            std::cout << "index-------| " << index << "\n";
+                            std::cout << "radius_c    | " << radius_c << "\n";
                             std::cout << "center.x    | " << ellip->box.center.x << "\n";
                             std::cout << "center.y    | " << ellip->box.center.y << "\n";
                             std::cout << "size.width  | " << ellip->box.size.width << "\n";
                             std::cout << "size.height | " << ellip->box.size.height << "\n";
-                            std::cout << "angle       | " << ellip->box.angle << "\n";
+                            std::cout << "angle       | " << ellip->box.angle << "\n\n";
                         }
 
                         // NOTE
@@ -1203,11 +1213,11 @@ cv::SFREAK_Impl::meanIntensityByTable( InputArray _image,
     const float sw  = param[2];
     const float sh  = param[3];
     const float ang = param[4];
-    std::cout << "cx    " << cx << "\n";
-    std::cout << "cy    " << cy << "\n";
-    std::cout << "sw    " << sw << "\n";
-    std::cout << "sh    " << sh << "\n";
-    std::cout << "ang   " << ang << "\n";
+    // std::cout << "cx    " << cx << "\n";
+    // std::cout << "cy    " << cy << "\n";
+    // std::cout << "sw    " << sw << "\n";
+    // std::cout << "sh    " << sh << "\n";
+    // std::cout << "ang   " << ang << "\n";
 
     cv::Point2f pt_2 = rotatePoint( cx, cy, cosTheta, sinTheta );
 
@@ -1216,8 +1226,8 @@ cv::SFREAK_Impl::meanIntensityByTable( InputArray _image,
 
     const int x = int( xf );
     const int y = int( yf );
-    std::cout << "x   " << x << "\n";
-    std::cout << "y   " << y << "\n";
+    // std::cout << "x   " << x << "\n";
+    // std::cout << "y   " << y << "\n";
 
     // calculate output:
     if ( sw < 0.5 //
@@ -1229,10 +1239,10 @@ cv::SFREAK_Impl::meanIntensityByTable( InputArray _image,
         const int r_x_1 = ( 1024 - r_x );
         const int r_y_1 = ( 1024 - r_y );
 
-        std::cout << "r_x   " << r_x << "\n";
-        std::cout << "r_y   " << r_y << "\n";
-        std::cout << "r_x_1 " << r_x_1 << "\n";
-        std::cout << "r_y_1 " << r_y_1 << "\n";
+        // std::cout << "r_x   " << r_x << "\n";
+        // std::cout << "r_y   " << r_y << "\n";
+        // std::cout << "r_x_1 " << r_x_1 << "\n";
+        // std::cout << "r_y_1 " << r_y_1 << "\n";
 
         unsigned int ret_val;
         // linear interpolation:

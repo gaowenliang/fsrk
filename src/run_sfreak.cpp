@@ -113,11 +113,11 @@ detectFREAK( Mat& img1, Mat& img2, vector< KeyPoint >& kp1, vector< KeyPoint >& 
     // std::cout << " size2 " << kp2.size( ) << std::endl;
     //////////////////////////////////////////////////////
 
-    Ptr< SFREAK > freak = cv::SFREAK::create( true, true, 22, 4 ); // 36
+    Ptr< SFREAK > freak = cv::SFREAK::create( true, true, 30, 4 ); // 36
     freak->loadCamera( file_cam );
     freak->loadMask( file_mask );
 
-    Ptr< SFREAK > freak2 = cv::SFREAK::create( true, true, 22, 4 ); // 36
+    Ptr< SFREAK > freak2 = cv::SFREAK::create( true, true, 30, 4 ); // 36
     freak2->loadCamera( file_cam2 );
     freak2->loadMask( );
 
@@ -147,7 +147,7 @@ detectFREAK( Mat& img1, Mat& img2, vector< KeyPoint >& kp1, vector< KeyPoint >& 
 
     t = getTickCount( );
 
-    int time = 10;
+    int time = 1;
 
     for ( int i = 0; i < time; ++i )
         freak->compute( img1, kp1, des1 );
