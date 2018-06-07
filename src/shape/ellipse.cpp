@@ -396,9 +396,7 @@ static void
 FillConvexPoly3( Mat& img, const Point* v, int npts, const void* color );
 
 static void
-sumConvexPoly3( Mat& img, const Point* v, int npts, int& sum_v, int& num_v );
-
-int _num_p = 0;
+sumConvexPoly3( Mat& img, cv::Mat integral, const Point* v, int npts, int& sum_v, int& num_v );
 
 static inline void
 ICV_HLINE_X2( uchar* ptr, int xl, int xr, const uchar* color, int pix_size )
@@ -414,7 +412,6 @@ ICV_HLINE_X2( uchar* ptr, int xl, int xr, const uchar* color, int pix_size )
         std::cout << "(" << int( hline_ptr[0] ) << ") to ";
         memset( hline_min_ptr, *color, hline_end_ptr - hline_min_ptr );
         std::cout << "(" << int( hline_ptr[0] ) << ")- " << hline_end_ptr - hline_min_ptr << "\n";
-        ++_num_p;
     }
     else // if (pix_size != 1)
     {
@@ -425,7 +422,6 @@ ICV_HLINE_X2( uchar* ptr, int xl, int xr, const uchar* color, int pix_size )
             //  std::cout << "(" << int( hline_ptr[0] ) << "," << int( hline_ptr[1] ) << ","
             //            << int( hline_ptr[2] ) << ") to ";
             memcpy( hline_ptr, color, pix_size );
-            ++_num_p;
             //            std::cout << "(" << int( hline_ptr[0] ) << "," << int(
             //            hline_ptr[1] ) << ","
             //                      << int( hline_ptr[2] ) << " \n";
@@ -439,7 +435,6 @@ ICV_HLINE_X2( uchar* ptr, int xl, int xr, const uchar* color, int pix_size )
             //            hline_ptr[1] ) << ","
             //                      << int( hline_ptr[2] ) << ") to ";
             memcpy( hline_ptr, hline_min_ptr, sizeToCopy );
-            ++_num_p;
             //            std::cout << "(" << int( hline_ptr[0] ) << "," << int(
             //            hline_ptr[1] ) << ","
             //                      << int( hline_ptr[2] ) << ") - " << _num_p << "\n";
@@ -452,19 +447,40 @@ ICV_HLINE_X2( uchar* ptr, int xl, int xr, const uchar* color, int pix_size )
 }
 
 static inline void
-sumEll1( uchar* ptr, int& sum, int& num, int xl, int xr )
+sumEll1( uchar* img_ptr, cv::Mat int_img, int* _integ_ptr, int& sum, int& num, int xl, int xr, int cols, int y )
 {
-    uchar* hline_min_ptr = ( uchar* )( ptr ) + ( xl );
-    uchar* hline_end_ptr = ( uchar* )( ptr ) + ( xr + 1 );
+    uchar* hline_min_ptr = ( uchar* )( img_ptr ) + ( xl );
+    uchar* hline_end_ptr = ( uchar* )( img_ptr ) + ( xr + 1 );
     uchar* hline_ptr     = hline_min_ptr;
+    // std::cout << " " << xl << " " << xr + 1 << " " << xr + 1 - xl << "\n";
 
+    // sum = 0;
+    // num = 0;
     while ( hline_ptr < hline_end_ptr )
     {
+        sum += hline_ptr[0];
+
         hline_ptr += 1;
 
-        sum += hline_ptr[0];
         ++num;
     } // end while(hline_ptr < hline_end_ptr)
+
+    // std::cout << num << " sum " << sum << "\n";
+
+    int* int_1_ptr = ( int* )( _integ_ptr ) + ( xl );
+    int* int_2_ptr = ( int* )( _integ_ptr ) + ( xr + 1 );
+    int* int_3_ptr = ( int* )( _integ_ptr ) + cols + ( xl );
+    int* int_4_ptr = ( int* )( _integ_ptr ) + cols + ( xr + 1 );
+
+    int sum2 = 0;
+
+    //    sum2 = int_4_ptr[0] - int_3_ptr[0] - int_2_ptr[0] + int_1_ptr[0];
+    sum2 = int_img.at< int >( y + 1, xr + 1 ) - int_img.at< int >( y, xr + 1 )
+           - int_img.at< int >( y + 1, xl ) + int_img.at< int >( y, xl );
+
+    // std::cout << "int_end_ptr " << int_end_ptr[0] << " \n";
+    // std::cout << "int_min_ptr " << int_min_ptr[0] << " \n";
+    //  std::cout << xr + 1 - xl << " sum2 " << sum2 << "\n\n";
 }
 static inline void
 sumEll3( uchar* ptr, int& sum, int& num, int xl, int xr, int pix_size )
@@ -485,7 +501,6 @@ sumEll3( uchar* ptr, int& sum, int& num, int xl, int xr, int pix_size )
 
         // std::cout << "(" << int( hline_ptr[0] ) << ")- " << hline_end_ptr - hline_min_ptr
         // << "\n";
-        ++_num_p;
     }
     // else // if (pix_size != 1)
     // {
@@ -529,7 +544,7 @@ cv::Ellipse::drawPoly( InputOutputArray _img, const cv::Scalar& color )
 }
 
 void
-cv::Ellipse::sumPoly( cv::Mat img, int& sum, int& num )
+cv::Ellipse::sumPoly( cv::Mat img, cv::Mat integral, int& sum, int& num )
 {
 
     CV_Assert( box.size.width >= 0 && box.size.height >= 0 );
@@ -540,7 +555,7 @@ cv::Ellipse::sumPoly( cv::Mat img, int& sum, int& num )
     std::vector< Point > _v;
     toPoly( box.angle, _v );
 
-    sumConvexPoly3( img, &_v[0], ( int )_v.size( ), sum, num );
+    sumConvexPoly3( img, integral, &_v[0], ( int )_v.size( ), sum, num );
 }
 
 static void
@@ -738,24 +753,11 @@ FillConvexPoly3( Mat& img, const Point* v, int npts, const void* color )
         ptr += img.step;
 
     } while ( ++y <= ( int )ymax );
-
-    //  if ( ell_num != 0 )
-    //  {
-    //      std::cout << "ell_sum " << ell_sum << "\n";
-    //      std::cout << "ell_num " << ell_num << "\n";
-    //      std::cout << "avg " << ell_sum / ell_num << "\n";
-    //  }
-    //  else
-    //      std::cout << "ell_num " << ell_num << "\n";
 }
 
 static void
-sumConvexPoly3( Mat& img, const Point* v, int npts, int& sum_v, int& num_v )
+sumConvexPoly3( Mat& img, cv::Mat integral, const Point* v, int npts, int& sum_v, int& num_v )
 {
-
-    double buf[4];
-    cv_utils::scalarToData( cv::Scalar( 0, 0, 0 ), buf, img.type( ), 0 );
-
     struct
     {
         int idx, di;
@@ -766,8 +768,9 @@ sumConvexPoly3( Mat& img, const Point* v, int npts, int& sum_v, int& num_v )
     int i, y, imin = 0;
     int edges = npts;
     int xmin, xmax, ymin, ymax;
-    uchar* ptr = img.ptr( );
-    Size size  = img.size( );
+    uchar* img_ptr = img.ptr( );
+    int* integ_ptr = integral.ptr< int >( 500 );
+    Size size      = img.size( );
 
     xmin = xmax = v[0].x;
     ymin = ymax = v[0].y;
@@ -800,7 +803,8 @@ sumConvexPoly3( Mat& img, const Point* v, int npts, int& sum_v, int& num_v )
     edge[0].x = edge[1].x = -XY_ONE;
     edge[0].dx = edge[1].dx = 0;
 
-    ptr += img.step * y;
+    img_ptr += img.step * y;
+    integ_ptr += integral.cols * y;
 
     do
     {
@@ -860,7 +864,7 @@ sumConvexPoly3( Mat& img, const Point* v, int npts, int& sum_v, int& num_v )
                 if ( xx2 >= size.width )
                     xx2 = size.width - 1;
 
-                sumEll1( ptr, sum_v, num_v, xx1, xx2 );
+                sumEll1( img_ptr, integral, integ_ptr, sum_v, num_v, xx1, xx2, integral.cols, y );
             }
         }
         else
@@ -871,7 +875,8 @@ sumConvexPoly3( Mat& img, const Point* v, int npts, int& sum_v, int& num_v )
         edge[0].x += edge[0].dx;
         edge[1].x += edge[1].dx;
 
-        ptr += img.step;
+        img_ptr += img.step;
+        integ_ptr += integral.cols;
 
     } while ( ++y <= ( int )ymax );
 }
@@ -881,19 +886,16 @@ cv::Ellipse::getBox( ) const
 {
     return box;
 }
-
 cv::RotatedRect
 cv::Ellipse::getBox2( ) const
 {
     return cv::RotatedRect( box.center, box.size, box.angle );
 }
-
 cv::Point2f
 cv::Ellipse::getFocalPt1( ) const
 {
     return focalPoint1;
 }
-
 cv::Point2f
 cv::Ellipse::getFocalPt0( ) const
 {

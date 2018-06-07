@@ -176,7 +176,7 @@ test4( )
 
         // color.randColor( );
         // std::cout << "color " << color.getColor( ) << "\n";
-        ell3.sumPoly( img, sum_ell2, num_ell2 );
+        ell3.sumPoly( img, img, sum_ell2, num_ell2 );
         std::cout << "ell3 cost " << time.toc( ) << " ms " << sum_ell2 << " " << num_ell2 << "\n";
     }
 

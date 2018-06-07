@@ -36,7 +36,7 @@ class Ellipse
     void draw( InputOutputArray img, const Scalar& color );
     void drawPoly( InputOutputArray img, const Scalar& color );
 
-    void sumPoly( Mat img, int& sum, int& num );
+    void sumPoly( Mat img, Mat integral, int& sum, int& num );
 
     void toPoly( int angle, std::vector< Point >& pts );
 

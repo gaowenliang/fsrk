@@ -66,7 +66,7 @@ cv::SFREAK_Impl::angOfPoints( cv::Point2f pt0, cv::Point2f pt1 )
                   ( float )( pt1.x - pt0.x ) );
 }
 
-cv::Point2f
+inline cv::Point2f
 cv::SFREAK_Impl::rotatePoint( const float x, const float y, const float cosA, const float sinA )
 {
     //      |cosTheta -sinTheta|
@@ -733,6 +733,9 @@ cv::SFREAK_Impl::computeDescriptors( InputArray _image, std::vector< KeyPoint >&
 {
     Mat image = _image.getMat( );
 
+    Mat imgIntegral;
+    integral( image, imgIntegral, DataType< iiMatType >::type );
+
     // used to save pattern scale index corresponding to each keypoints
     std::vector< int > kpScaleIdx( keypoints.size( ) );
 
@@ -812,16 +815,23 @@ cv::SFREAK_Impl::computeDescriptors( InputArray _image, std::vector< KeyPoint >&
         for ( size_t k = keypoints.size( ); k--; )
         {
 
-            //  color_rand1 = rand( ) % 256;
-            //  color_rand2 = rand( ) % 256;
-            //  color_rand3 = rand( ) % 256;
+            float sinTheta, cosTheta, theta;
 
-            // NOTE
-            float dist     = disOfPoints( image_center, keypoints[k].pt );
-            float sinTheta = sinAngOfPoints( image_center, keypoints[k].pt, dist );
-            float cosTheta = cosAngOfPoints( image_center, keypoints[k].pt, dist );
-            float theta = angOfPoints( image_center, keypoints[k].pt ) * ( 180.0 / CV_PI );
-            int index   = int( dist );
+            float dist = disOfPoints( image_center, keypoints[k].pt );
+            int index  = int( dist );
+
+            if ( dist < 3.0f )
+            {
+                sinTheta = 0.0f;
+                cosTheta = 1.0f;
+                theta    = 0.0f;
+            }
+            else
+            {
+                sinTheta = sinAngOfPoints( image_center, keypoints[k].pt, dist );
+                cosTheta = cosAngOfPoints( image_center, keypoints[k].pt, dist );
+                theta    = angOfPoints( image_center, keypoints[k].pt ) * ( 180.0 / CV_PI );
+            }
 
             // estimate orientation (gradient)
             if ( !orientationNormalized )
@@ -852,6 +862,7 @@ cv::SFREAK_Impl::computeDescriptors( InputArray _image, std::vector< KeyPoint >&
                 {
                     pointsValue2[i]
                     = meanIntensityByTable< srcMatType, iiMatType >( image, //
+                                                                     imgIntegral,
                                                                      theta,
                                                                      cosTheta,
                                                                      sinTheta,
@@ -909,6 +920,7 @@ cv::SFREAK_Impl::computeDescriptors( InputArray _image, std::vector< KeyPoint >&
 
                     pointsValue2[i]
                     = meanIntensityByTable< srcMatType, iiMatType >( image, //
+                                                                     imgIntegral,
                                                                      theta,
                                                                      cosTheta,
                                                                      sinTheta,
@@ -946,12 +958,24 @@ cv::SFREAK_Impl::computeDescriptors( InputArray _image, std::vector< KeyPoint >&
               // color_rand3 = rand( ) % 256;
 
               // NOTE
-              float dist     = disOfPoints( image_center, keypoints[k].pt );
-              float sinTheta = sinAngOfPoints( image_center, keypoints[k].pt, dist );
-              float cosTheta = cosAngOfPoints( image_center, keypoints[k].pt, dist );
-              float theta = angOfPoints( image_center, keypoints[k].pt ) * ( 180.0 / CV_PI
-      );
-              int index   = int( dist );
+            float sinTheta, cosTheta, theta;
+            int index;
+
+            float dist = disOfPoints( image_center, keypoints[k].pt );
+            if ( dist < 3.0f )
+            {
+                sinTheta = 0.0f;
+                cosTheta = 1.0f;
+                theta    = 0.0f;
+                index    = 0;
+            }
+            else
+            {
+                sinTheta = sinAngOfPoints( image_center, keypoints[k].pt, dist );
+                cosTheta = cosAngOfPoints( image_center, keypoints[k].pt, dist );
+                theta    = angOfPoints( image_center, keypoints[k].pt ) * ( 180.0 / CV_PI );
+                index    = int( dist );
+            }
 
               // estimate orientation (gradient)
               if ( !orientationNormalized )
@@ -1202,6 +1226,7 @@ cv::SFREAK_Impl::meanIntensity( InputArray _image,
 template< typename imgType, typename iiType >
 imgType
 cv::SFREAK_Impl::meanIntensityByTable( cv::Mat image,
+                                       cv::Mat integral,
                                        const float theta,
                                        const float cosTheta,
                                        const float sinTheta,
@@ -1248,11 +1273,18 @@ cv::SFREAK_Impl::meanIntensityByTable( cv::Mat image,
         // std::cout << "r_y_1 " << r_y_1 << "\n";
 
         unsigned int ret_val;
+
+        imgType* img_ptr_y0 = image.ptr< imgType >( y );
+        imgType* img_ptr_y1 = image.ptr< imgType >( y + 1 );
+
         // linear interpolation:
-        ret_val = r_x_1 * r_y_1 * int( image.at< imgType >( y, x ) )
-                  + r_x * r_y_1 * int( image.at< imgType >( y, x + 1 ) )
-                  + r_x_1 * r_y * int( image.at< imgType >( y + 1, x ) )
-                  + r_x * r_y * int( image.at< imgType >( y + 1, x + 1 ) );
+        // ret_val = r_x_1 * r_y_1 * int( image.at< imgType >( y, x ) )
+        //           + r_x * r_y_1 * int( image.at< imgType >( y, x + 1 ) )
+        //           + r_x_1 * r_y * int( image.at< imgType >( y + 1, x ) )
+        //           + r_x * r_y * int( image.at< imgType >( y + 1, x + 1 ) );
+
+        ret_val = r_x_1 * r_y_1 * int( img_ptr_y0[x] ) + r_x * r_y_1 * int( img_ptr_y0[x + 1] )
+                  + r_x_1 * r_y * int( img_ptr_y1[x] ) + r_x * r_y * int( img_ptr_y1[x + 1] );
 
         // return the rounded mean
         ret_val += 2 * 1024 * 1024;
@@ -1265,7 +1297,7 @@ cv::SFREAK_Impl::meanIntensityByTable( cv::Mat image,
         int _num = 0;
 
         Ellipse ell( cv::Point2f( xf, yf ), cv::Size2f( sw, sh ), ang + theta );
-        ell.sumPoly( image, _sum, _num );
+        ell.sumPoly( image, integral, _sum, _num );
 
         iiType ret_val;
         ret_val = iiType( _sum / _num );

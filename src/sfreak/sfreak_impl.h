@@ -114,6 +114,7 @@ class SFREAK_Impl : public SFREAK
 
     template< typename imgType, typename iiType >
     imgType meanIntensityByTable( cv::Mat image,
+                                  cv::Mat integral,
                                   const float theta,
                                   const float cosTheta,
                                   const float sinTheta,
@@ -133,7 +134,7 @@ class SFREAK_Impl : public SFREAK
     float sinAngOfPoints( cv::Point2f pt0, cv::Point2f pt1, float dis );
     float cosAngOfPoints( cv::Point2f pt0, cv::Point2f pt1, float dis );
     float angOfPoints( cv::Point2f pt0, cv::Point2f pt1 );
-    cv::Point2f rotatePoint( const float x, const float y, const float cosA, const float sinA );
+    inline cv::Point2f rotatePoint( const float x, const float y, const float cosA, const float sinA );
 
     bool orientationNormalized; // true if the orientation is normalized, false otherwise
     bool scaleNormalized;       // true if the scale is normalized, false otherwise
