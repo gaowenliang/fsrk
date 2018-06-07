@@ -280,6 +280,17 @@ cv::SFREAK_Impl::buildPattern( )
                                      ellip->box.size.height,
                                      ellip->box.angle );
 
+                        if ( ellip->box.size.width < 1 //
+                             && ellip->box.size.height < 1 )
+                        {
+
+                            std::cout << "center.x    | " << ellip->box.center.x << "\n";
+                            std::cout << "center.y    | " << ellip->box.center.y << "\n";
+                            std::cout << "size.width  | " << ellip->box.size.width << "\n";
+                            std::cout << "size.height | " << ellip->box.size.height << "\n";
+                            std::cout << "angle       | " << ellip->box.angle << "\n";
+                        }
+
                         // NOTE
                         //   if ( index % 15 == 0 )
                         //       ellip_fit.draw( image_color, cv::Scalar( color_rand1,
@@ -1192,6 +1203,11 @@ cv::SFREAK_Impl::meanIntensityByTable( InputArray _image,
     const float sw  = param[2];
     const float sh  = param[3];
     const float ang = param[4];
+    std::cout << "cx    " << cx << "\n";
+    std::cout << "cy    " << cy << "\n";
+    std::cout << "sw    " << sw << "\n";
+    std::cout << "sh    " << sh << "\n";
+    std::cout << "ang   " << ang << "\n";
 
     cv::Point2f pt_2 = rotatePoint( cx, cy, cosTheta, sinTheta );
 
@@ -1200,6 +1216,8 @@ cv::SFREAK_Impl::meanIntensityByTable( InputArray _image,
 
     const int x = int( xf );
     const int y = int( yf );
+    std::cout << "x   " << x << "\n";
+    std::cout << "y   " << y << "\n";
 
     // calculate output:
     if ( sw < 0.5 //
@@ -1210,6 +1228,11 @@ cv::SFREAK_Impl::meanIntensityByTable( InputArray _image,
         const int r_y   = static_cast< int >( ( yf - y ) * 1024 );
         const int r_x_1 = ( 1024 - r_x );
         const int r_y_1 = ( 1024 - r_y );
+
+        std::cout << "r_x   " << r_x << "\n";
+        std::cout << "r_y   " << r_y << "\n";
+        std::cout << "r_x_1 " << r_x_1 << "\n";
+        std::cout << "r_y_1 " << r_y_1 << "\n";
 
         unsigned int ret_val;
         // linear interpolation:
@@ -1225,24 +1248,11 @@ cv::SFREAK_Impl::meanIntensityByTable( InputArray _image,
     }
     else
     {
-        float _sum = 0;
-        int _num   = 0;
+        int _sum = 0;
+        int _num = 0;
 
-        // NOTE
         Ellipse ell( cv::Point2f( xf, yf ), cv::Size2f( sw, sh ), ang + theta );
-        // ell.draw( image_color, cv::Scalar( color_rand1, color_rand2, color_rand3 ) );
-
-        cv::Rect rect = ell.box.boundingRect( );
-        for ( int row_id = 0; row_id < rect.height; ++row_id )
-            for ( int col_id = 0; col_id < rect.width; ++col_id )
-            {
-                cv::Point2f pt( col_id + rect.x, row_id + rect.y );
-                if ( ell.inside( pt ) )
-                {
-                    _sum += image.at< imgType >( pt );
-                    _num++;
-                }
-            }
+        ell.sumPoly( image, _sum, _num );
 
         iiType ret_val;
         ret_val = iiType( _sum / _num );

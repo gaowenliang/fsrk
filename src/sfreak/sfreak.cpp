@@ -45,58 +45,6 @@
 namespace cv
 {
 
-// Mat image_color;
-
-// create an image showing the brisk pattern
-// void
-// SFREAK_Impl::drawPattern( )
-//{
-//    Mat pattern = Mat::zeros( 1000, 1000, CV_8UC3 ) + Scalar( 255, 255, 255 );
-//    int sFac    = 500 / patternScale;
-//    for ( int n = 0; n < FREAK_NB_POINTS; ++n )
-//    {
-//        PatternEllipse& pt = patternTable[0][n];
-//        circle( pattern,
-//                Point( pt.pPatt->box.center.x * sFac, pt.pPatt->box.center.y * sFac ) +
-//                Point( 500, 500 ),
-//                pt.pPatt->box.size.width * sFac,
-//                Scalar( 0, 0, 255 ),
-//                2 );
-//        //  rectangle( pattern,
-//        //             Point( ( pt.pPatt->box.center.x - pt.pPatt->box.size.width ) *
-//        sFac,
-//        //                    ( pt.pPatt->box.center.y - pt.pPatt->box.size.width ) * sFac
-//        )
-//        //             + Point( 500, 500 ),
-//        //             Point( ( pt.pPatt->box.center.x + pt.pPatt->box.size.width ) *
-//        sFac,
-//        //                    ( pt.pPatt->box.center.y + pt.pPatt->box.size.width ) * sFac
-//        )
-//        //             + Point( 500, 500 ),
-//        //             Scalar( 0, 0, 255 ),
-//        //             2 );
-
-//        circle( pattern,
-//                Point( pt.pPatt->box.center.x * sFac, pt.pPatt->box.center.y * sFac ) +
-//                Point( 500, 500 ),
-//                1,
-//                Scalar( 0, 0, 0 ),
-//                3 );
-//        std::ostringstream oss;
-//        oss << n;
-//        putText( pattern,
-//                 oss.str( ),
-//                 Point( pt.pPatt->box.center.x * sFac, pt.pPatt->box.center.y * sFac ) +
-//                 Point( 500, 500 ),
-//                 FONT_HERSHEY_SIMPLEX,
-//                 0.5,
-//                 Scalar( 0, 0, 0 ),
-//                 1 );
-//    }
-//    imshow( "FreakDescriptorExtractor pattern", pattern );
-//    waitKey( 0 );
-//}
-
 // -------------------------------------------------
 Ptr< SFREAK >
 SFREAK::create( bool orientationNormalized,

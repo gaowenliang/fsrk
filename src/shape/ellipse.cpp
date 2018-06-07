@@ -1,5 +1,6 @@
 #include "ellipse.h"
 #include "cv_utils.h"
+#include <code_utils/cv_utils/randomcolor.h>
 #include <eigen3/Eigen/Eigen>
 
 static const float SinTable[]
@@ -102,51 +103,20 @@ sincos( int angle, float& cosval, float& sinval )
 cv::Ellipse::Ellipse( const cv::Ellipse& ell_in )
 : box( ell_in.box )
 {
-    axisHalfLong  = std::max( box.size.width, box.size.height ) / 2;
-    axisHalfShort = std::min( box.size.width, box.size.height ) / 2;
-
-    focalLengthHalf = std::sqrt( axisHalfLong * axisHalfLong - axisHalfShort * axisHalfShort );
-
-    int _angle;
-    if ( box.size.width > box.size.height )
-        _angle = 180 - box.angle;
-    else
-        _angle = 90 - box.angle;
-
-    float cosval, sinval;
-    sincos( _angle, cosval, sinval );
-
-    focalPoint0 = cv::Point2f( box.center.x + focalLengthHalf * cosval,
-                               box.center.y - focalLengthHalf * sinval );
-    focalPoint1 = cv::Point2f( box.center.x - focalLengthHalf * cosval,
-                               box.center.y + focalLengthHalf * sinval );
 }
 
 cv::Ellipse::Ellipse( const cv::RectRot& _box )
 : box( _box )
 {
-    axisHalfLong  = std::max( box.size.width, box.size.height ) / 2;
-    axisHalfShort = std::min( box.size.width, box.size.height ) / 2;
-
-    focalLengthHalf = std::sqrt( axisHalfLong * axisHalfLong - axisHalfShort * axisHalfShort );
-
-    int _angle;
-    if ( box.size.width > box.size.height )
-        _angle = 180 - box.angle;
-    else
-        _angle = 90 - box.angle;
-
-    float cosval, sinval;
-    sincos( _angle, cosval, sinval );
-
-    focalPoint0 = cv::Point2f( box.center.x + focalLengthHalf * cosval,
-                               box.center.y - focalLengthHalf * sinval );
-    focalPoint1 = cv::Point2f( box.center.x - focalLengthHalf * cosval,
-                               box.center.y + focalLengthHalf * sinval );
 }
 
 cv::Ellipse::Ellipse( const cv::Point2f& center, const cv::Size2f& size, float angle )
 : box( center, size, angle )
+{
+}
+
+void
+cv::Ellipse::calcParam( )
 {
     axisHalfLong  = std::max( box.size.width, box.size.height ) / 2;
     axisHalfShort = std::min( box.size.width, box.size.height ) / 2;
@@ -372,6 +342,538 @@ cv::Ellipse::draw( InputOutputArray _img, const cv::Scalar& color )
                 memcpy( *iterator, _color, pix_size );
         }
     }
+}
+
+void
+cv::Ellipse::toPoly( int angle, std::vector< cv::Point >& pts )
+{
+    int arc_start = 0;
+    int arc_end   = 360;
+
+    int delta = int( 57.29 / std::max( box.size.width / 2, box.size.height / 2 ) );
+    delta     = delta < 3 ? 3 : delta;
+
+    float alpha, beta;
+    int i;
+
+    while ( angle < 0 )
+        angle += 360;
+    while ( angle > 360 )
+        angle -= 360;
+
+    sincos( angle, alpha, beta );
+    pts.resize( 0 );
+
+    for ( i = arc_start; i < arc_end + delta; i += delta )
+    {
+        double x, y;
+        angle = i;
+        if ( angle > arc_end )
+            angle = arc_end;
+        if ( angle < 0 )
+            angle += 360;
+
+        x = 0.5 * box.size.width * SinTable[450 - angle];
+        y = 0.5 * box.size.height * SinTable[angle];
+
+        Point2d pt;
+        pt.x = box.center.x + x * alpha - y * beta;
+        pt.y = box.center.y + x * beta + y * alpha;
+
+        pts.push_back( cv::Point( cvRound( pt.x ), cvRound( pt.y ) ) );
+    }
+
+    // If there are no points, it's a zero-size polygon
+    if ( pts.size( ) == 1 )
+    {
+        pts.assign( 2, box.center );
+    }
+}
+
+using namespace cv;
+
+static void
+FillConvexPoly3( Mat& img, const Point* v, int npts, const void* color );
+
+static void
+sumConvexPoly3( Mat& img, const Point* v, int npts, int& sum_v, int& num_v );
+
+int _num_p = 0;
+
+static inline void
+ICV_HLINE_X2( uchar* ptr, int xl, int xr, const uchar* color, int pix_size )
+{
+    uchar* hline_min_ptr = ( uchar* )( ptr ) + ( xl ) * ( pix_size );
+    uchar* hline_end_ptr = ( uchar* )( ptr ) + ( xr + 1 ) * ( pix_size );
+    uchar* hline_ptr     = hline_min_ptr;
+
+    if ( pix_size == 1 )
+    {
+        std::cout << "++++++++++++++++++++++++++++\n";
+
+        std::cout << "(" << int( hline_ptr[0] ) << ") to ";
+        memset( hline_min_ptr, *color, hline_end_ptr - hline_min_ptr );
+        std::cout << "(" << int( hline_ptr[0] ) << ")- " << hline_end_ptr - hline_min_ptr << "\n";
+        ++_num_p;
+    }
+    else // if (pix_size != 1)
+    {
+        if ( hline_min_ptr < hline_end_ptr )
+        {
+            //  std::cout << "///////////////////////////\n";
+            //
+            //  std::cout << "(" << int( hline_ptr[0] ) << "," << int( hline_ptr[1] ) << ","
+            //            << int( hline_ptr[2] ) << ") to ";
+            memcpy( hline_ptr, color, pix_size );
+            ++_num_p;
+            //            std::cout << "(" << int( hline_ptr[0] ) << "," << int(
+            //            hline_ptr[1] ) << ","
+            //                      << int( hline_ptr[2] ) << " \n";
+
+            hline_ptr += pix_size;
+        } // end if (hline_min_ptr < hline_end_ptr)
+        size_t sizeToCopy = pix_size;
+        while ( hline_ptr < hline_end_ptr )
+        {
+            //            std::cout << "(" << int( hline_ptr[0] ) << "," << int(
+            //            hline_ptr[1] ) << ","
+            //                      << int( hline_ptr[2] ) << ") to ";
+            memcpy( hline_ptr, hline_min_ptr, sizeToCopy );
+            ++_num_p;
+            //            std::cout << "(" << int( hline_ptr[0] ) << "," << int(
+            //            hline_ptr[1] ) << ","
+            //                      << int( hline_ptr[2] ) << ") - " << _num_p << "\n";
+
+            hline_ptr += sizeToCopy;
+            sizeToCopy
+            = std::min( 2 * sizeToCopy, static_cast< size_t >( hline_end_ptr - hline_ptr ) );
+        } // end while(hline_ptr < hline_end_ptr)
+    }     // end if (pix_size != 1)
+}
+
+static inline void
+sumEll1( uchar* ptr, int& sum, int& num, int xl, int xr )
+{
+    uchar* hline_min_ptr = ( uchar* )( ptr ) + ( xl );
+    uchar* hline_end_ptr = ( uchar* )( ptr ) + ( xr + 1 );
+    uchar* hline_ptr     = hline_min_ptr;
+
+    while ( hline_ptr < hline_end_ptr )
+    {
+        hline_ptr += 1;
+
+        sum += hline_ptr[0];
+        ++num;
+    } // end while(hline_ptr < hline_end_ptr)
+}
+static inline void
+sumEll3( uchar* ptr, int& sum, int& num, int xl, int xr, int pix_size )
+{
+    uchar* hline_min_ptr = ( uchar* )( ptr ) + ( xl ) * ( pix_size );
+    uchar* hline_end_ptr = ( uchar* )( ptr ) + ( xr + 1 ) * ( pix_size );
+    uchar* hline_ptr     = hline_min_ptr;
+
+    if ( pix_size == 1 )
+    {
+        while ( hline_ptr < hline_end_ptr )
+        {
+            hline_ptr += pix_size;
+
+            sum += hline_ptr[0];
+            ++num;
+        } // end while(hline_ptr < hline_end_ptr)
+
+        // std::cout << "(" << int( hline_ptr[0] ) << ")- " << hline_end_ptr - hline_min_ptr
+        // << "\n";
+        ++_num_p;
+    }
+    // else // if (pix_size != 1)
+    // {
+    //     if ( hline_min_ptr < hline_end_ptr )
+    //     {
+    //         memcpy( hline_ptr, color, pix_size );
+    //         ++_num_p;
+    //
+    //         hline_ptr += pix_size;
+    //     } // end if (hline_min_ptr < hline_end_ptr)
+    //     size_t sizeToCopy = pix_size;
+    //     while ( hline_ptr < hline_end_ptr )
+    //     {
+    //         memcpy( hline_ptr, hline_min_ptr, sizeToCopy );
+    //         ++_num_p;
+    //
+    //         hline_ptr += sizeToCopy;
+    //         sizeToCopy = std::min( 2 * sizeToCopy, //
+    //                                static_cast< size_t >( hline_end_ptr - hline_ptr ) );
+    //     } // end while(hline_ptr < hline_end_ptr)
+    // }     // end if (pix_size != 1)
+}
+
+void
+cv::Ellipse::drawPoly( InputOutputArray _img, const cv::Scalar& color )
+{
+    Mat img = _img.getMat( );
+
+    CV_Assert( box.size.width >= 0 && box.size.height >= 0 );
+
+    double buf[4];
+    cv_utils::scalarToData( color, buf, img.type( ), 0 );
+
+    int delta = int( 57.29 / std::max( box.size.width / 2, box.size.height / 2 ) );
+    delta     = delta < 2 ? 2 : delta;
+
+    std::vector< Point > _v;
+    toPoly( box.angle, _v );
+
+    FillConvexPoly3( img, &_v[0], ( int )_v.size( ), buf );
+}
+
+void
+cv::Ellipse::sumPoly( cv::Mat img, int& sum, int& num )
+{
+
+    CV_Assert( box.size.width >= 0 && box.size.height >= 0 );
+
+    int delta = int( 57.29 / std::max( box.size.width / 2, box.size.height / 2 ) );
+    delta     = delta < 2 ? 2 : delta;
+
+    std::vector< Point > _v;
+    toPoly( box.angle, _v );
+
+    sumConvexPoly3( img, &_v[0], ( int )_v.size( ), sum, num );
+}
+
+static void
+Line( Mat& img, Point pt1, Point pt2, const void* _color )
+{
+    int connectivity = 8;
+
+    if ( connectivity == 0 )
+        connectivity = 8;
+    else if ( connectivity == 1 )
+        connectivity = 4;
+
+    LineIterator iterator( img, pt1, pt2, connectivity, true );
+    int i, count = iterator.count;
+    int pix_size       = ( int )img.elemSize( );
+    const uchar* color = ( const uchar* )_color;
+
+    for ( i = 0; i < count; i++, ++iterator )
+    {
+        uchar* ptr = *iterator;
+        if ( pix_size == 1 )
+            ptr[0] = color[0];
+        else if ( pix_size == 3 )
+        {
+            ptr[0] = color[0];
+            ptr[1] = color[1];
+            ptr[2] = color[2];
+        }
+        else
+            memcpy( *iterator, color, pix_size );
+    }
+}
+
+void
+sumLine( Mat& img, int& sum, int& num, Point pt1, Point pt2 )
+{
+    int connectivity = 8;
+
+    LineIterator iterator( img, pt1, pt2, connectivity, true );
+    int i, count = iterator.count;
+    int pix_size = ( int )img.elemSize( );
+
+    if ( pix_size == 1 )
+    {
+        for ( i = 0; i < count; i++, ++iterator )
+        {
+            uchar* ptr = *iterator;
+            sum += int( ptr[0] );
+            ++num;
+        }
+    }
+    // else if ( pix_size == 3 )
+    // {
+    //     for ( i = 0; i < count; i++, ++iterator )
+    //     {
+    //         uchar* ptr = *iterator;
+    //         sum += cv::Vec3i( ptr[0], ptr[1], ptr[2] );
+    //     }
+    // }
+}
+
+static void
+FillConvexPoly3( Mat& img, const Point* v, int npts, const void* color )
+{
+    struct
+    {
+        int idx, di;
+        int x, dx;
+        int ye;
+    } edge[2];
+
+    int i, y, imin = 0;
+    int edges = npts;
+    int xmin, xmax, ymin, ymax;
+    uchar* ptr   = img.ptr( );
+    Size size    = img.size( );
+    int pix_size = ( int )img.elemSize( );
+    Point p0;
+
+    p0 = v[npts - 1];
+
+    xmin = xmax = v[0].x;
+    ymin = ymax = v[0].y;
+
+    for ( i = 0; i < npts; i++ )
+    {
+        Point p = v[i];
+        if ( p.y < ymin )
+        {
+            ymin = p.y;
+            imin = i;
+        }
+
+        ymax = std::max( ymax, p.y );
+        xmax = std::max( xmax, p.x );
+        xmin = MIN( xmin, p.x );
+
+        Line( img, p0, p, color );
+
+        p0 = p;
+    }
+    // if ( num_line != 0 )
+    // {
+    //     std::cout << "sum_line " << sum_line << "\n";
+    //     std::cout << "num_line " << num_line << "\n";
+    //     std::cout << "avg " << sum_line / num_line << "\n";
+    // }
+
+    if ( npts < 3 || ( int )xmax < 0 || ( int )ymax < 0 || ( int )xmin >= size.width
+         || ( int )ymin >= size.height )
+        return;
+
+    ymax        = MIN( ymax, size.height - 1 );
+    edge[0].idx = edge[1].idx = imin;
+
+    edge[0].ye = edge[1].ye = y = ( int )ymin;
+    edge[0].di                  = 1;
+    edge[1].di                  = npts - 1;
+
+    edge[0].x = edge[1].x = -XY_ONE;
+    edge[0].dx = edge[1].dx = 0;
+
+    ptr += img.step * y;
+
+    do
+    {
+
+        if ( y < ( int )ymax || y == ( int )ymin )
+        {
+            for ( i = 0; i < 2; i++ )
+            {
+                if ( y >= edge[i].ye )
+                {
+                    int idx0 = edge[i].idx, di = edge[i].di;
+                    int idx = idx0 + di;
+                    if ( idx >= npts )
+                        idx -= npts;
+                    int ty = 0;
+
+                    for ( ; edges-- > 0; )
+                    {
+                        ty = ( int )( v[idx].y );
+                        if ( ty > y )
+                        {
+                            int xs = v[idx0].x;
+                            int xe = v[idx].x;
+
+                            edge[i].ye = ty;
+                            edge[i].dx = ( ( xe - xs ) * 2 + ( ty - y ) ) / ( 2 * ( ty - y ) );
+                            edge[i].x   = xs;
+                            edge[i].idx = idx;
+                            break;
+                        }
+                        idx0 = idx;
+                        idx += di;
+                        if ( idx >= npts )
+                            idx -= npts;
+                    }
+                }
+            }
+        }
+
+        if ( edges < 0 )
+            break;
+
+        if ( y >= 0 )
+        {
+            int left = 0, right = 1;
+            if ( edge[0].x > edge[1].x )
+            {
+                left = 1, right = 0;
+            }
+
+            int xx1 = edge[left].x;
+            int xx2 = edge[right].x;
+
+            if ( xx2 >= 0 && xx1 < size.width )
+            {
+                if ( xx1 < 0 )
+                    xx1 = 0;
+                if ( xx2 >= size.width )
+                    xx2 = size.width - 1;
+
+                ICV_HLINE_X2( ptr, xx1, xx2, reinterpret_cast< const uchar* >( color ), pix_size );
+            }
+        }
+        else
+        {
+            // TODO optimize scan for negative y
+        }
+
+        edge[0].x += edge[0].dx;
+        edge[1].x += edge[1].dx;
+
+        ptr += img.step;
+
+    } while ( ++y <= ( int )ymax );
+
+    //  if ( ell_num != 0 )
+    //  {
+    //      std::cout << "ell_sum " << ell_sum << "\n";
+    //      std::cout << "ell_num " << ell_num << "\n";
+    //      std::cout << "avg " << ell_sum / ell_num << "\n";
+    //  }
+    //  else
+    //      std::cout << "ell_num " << ell_num << "\n";
+}
+
+static void
+sumConvexPoly3( Mat& img, const Point* v, int npts, int& sum_v, int& num_v )
+{
+
+    double buf[4];
+    cv_utils::scalarToData( cv::Scalar( 0, 0, 0 ), buf, img.type( ), 0 );
+
+    struct
+    {
+        int idx, di;
+        int x, dx;
+        int ye;
+    } edge[2];
+
+    int i, y, imin = 0;
+    int edges = npts;
+    int xmin, xmax, ymin, ymax;
+    uchar* ptr = img.ptr( );
+    Size size  = img.size( );
+
+    xmin = xmax = v[0].x;
+    ymin = ymax = v[0].y;
+
+    for ( i = 0; i < npts; i++ )
+    {
+        Point p = v[i];
+        if ( p.y < ymin )
+        {
+            ymin = p.y;
+            imin = i;
+        }
+
+        ymax = std::max( ymax, p.y );
+        xmax = std::max( xmax, p.x );
+        xmin = MIN( xmin, p.x );
+    }
+
+    if ( npts < 3 || ( int )xmax < 0 || ( int )ymax < 0 || ( int )xmin >= size.width
+         || ( int )ymin >= size.height )
+        return;
+
+    ymax        = MIN( ymax, size.height - 1 );
+    edge[0].idx = edge[1].idx = imin;
+
+    edge[0].ye = edge[1].ye = y = ( int )ymin;
+    edge[0].di                  = 1;
+    edge[1].di                  = npts - 1;
+
+    edge[0].x = edge[1].x = -XY_ONE;
+    edge[0].dx = edge[1].dx = 0;
+
+    ptr += img.step * y;
+
+    do
+    {
+        if ( y < ( int )ymax || y == ( int )ymin )
+        {
+            for ( i = 0; i < 2; i++ )
+            {
+                if ( y >= edge[i].ye )
+                {
+                    int idx0 = edge[i].idx, di = edge[i].di;
+                    int idx = idx0 + di;
+                    if ( idx >= npts )
+                        idx -= npts;
+                    int ty = 0;
+
+                    for ( ; edges-- > 0; )
+                    {
+                        ty = ( int )( v[idx].y );
+                        if ( ty > y )
+                        {
+                            int xs = v[idx0].x;
+                            int xe = v[idx].x;
+
+                            edge[i].ye = ty;
+                            edge[i].dx = ( ( xe - xs ) * 2 + ( ty - y ) ) / ( 2 * ( ty - y ) );
+                            edge[i].x   = xs;
+                            edge[i].idx = idx;
+                            break;
+                        }
+                        idx0 = idx;
+                        idx += di;
+                        if ( idx >= npts )
+                            idx -= npts;
+                    }
+                }
+            }
+        }
+
+        if ( edges < 0 )
+            break;
+
+        if ( y >= 0 )
+        {
+            int left = 0, right = 1;
+            if ( edge[0].x > edge[1].x )
+            {
+                left = 1, right = 0;
+            }
+
+            int xx1 = edge[left].x;
+            int xx2 = edge[right].x;
+
+            if ( xx2 >= 0 && xx1 < size.width )
+            {
+                if ( xx1 < 0 )
+                    xx1 = 0;
+                if ( xx2 >= size.width )
+                    xx2 = size.width - 1;
+
+                sumEll1( ptr, sum_v, num_v, xx1, xx2 );
+            }
+        }
+        else
+        {
+            // TODO optimize scan for negative y
+        }
+
+        edge[0].x += edge[0].dx;
+        edge[1].x += edge[1].dx;
+
+        ptr += img.step;
+
+    } while ( ++y <= ( int )ymax );
 }
 
 cv::RectRot

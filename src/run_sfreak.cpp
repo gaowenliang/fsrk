@@ -113,17 +113,18 @@ detectFREAK( Mat& img1, Mat& img2, vector< KeyPoint >& kp1, vector< KeyPoint >& 
     // std::cout << " size2 " << kp2.size( ) << std::endl;
     //////////////////////////////////////////////////////
 
-    Ptr< SFREAK > freak = cv::SFREAK::create( true, true, 36, 4 );
+    Ptr< SFREAK > freak = cv::SFREAK::create( true, true, 22, 4 ); // 36
     freak->loadCamera( file_cam );
     freak->loadMask( file_mask );
 
-    Ptr< SFREAK > freak2 = cv::SFREAK::create( true, true, 36, 4 );
+    Ptr< SFREAK > freak2 = cv::SFREAK::create( true, true, 22, 4 ); // 36
     freak2->loadCamera( file_cam2 );
     freak2->loadMask( );
 
     std::cout << "/////////////////////////////////////// \n";
     std::cout << "/////////////////////////////////////// \n";
-    if ( 0 )
+    bool calc_table = 1;
+    if ( calc_table )
     {
         freak2->buildPatternTable( );
         freak2->savePatternTableToData( "/home/gao/ws/src/fsrk/cfg/fsrk_f" );
@@ -133,7 +134,7 @@ detectFREAK( Mat& img1, Mat& img2, vector< KeyPoint >& kp1, vector< KeyPoint >& 
         freak2->loadPatternTableFromData( "/home/gao/ws/src/fsrk/cfg/fsrk_f" );
     }
 
-    if ( 0 )
+    if ( calc_table )
     {
         freak->buildPatternTable( );
         freak->savePatternTableToData( "/home/gao/ws/src/fsrk/cfg/fsrk_down" );
@@ -142,6 +143,7 @@ detectFREAK( Mat& img1, Mat& img2, vector< KeyPoint >& kp1, vector< KeyPoint >& 
     {
         freak->loadPatternTableFromData( "/home/gao/ws/src/fsrk/cfg/fsrk_down" );
     }
+    std::cout << "[#INFO] Pattern loading done. \n";
 
     t = getTickCount( );
 

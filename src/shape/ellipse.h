@@ -25,6 +25,8 @@ class Ellipse
     Ellipse( const cv::RectRot& _box );
     Ellipse( const Point2f& center, const Size2f& size, float angle );
 
+    void calcParam( );
+
     float dis2( cv::Point2f pt0, cv::Point2f pt1 );
     bool inside( cv::Point2f pt );
     bool onEllipse( cv::Point2f pt );
@@ -32,6 +34,11 @@ class Ellipse
     void fit( InputArray _points );
 
     void draw( InputOutputArray img, const Scalar& color );
+    void drawPoly( InputOutputArray img, const Scalar& color );
+
+    void sumPoly( Mat img, int& sum, int& num );
+
+    void toPoly( int angle, std::vector< Point >& pts );
 
     float getAxisLong( ) const { return 2 * axisHalfLong; }
     float getAxisShort( ) const { return 2 * axisHalfShort; }
