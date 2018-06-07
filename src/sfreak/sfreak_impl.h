@@ -113,15 +113,13 @@ class SFREAK_Impl : public SFREAK
                            const unsigned int point );
 
     template< typename imgType, typename iiType >
-    imgType meanIntensityByTable( InputArray image,
-                                  const int index,
+    imgType meanIntensityByTable( cv::Mat image,
+                                  const float theta,
                                   const float cosTheta,
                                   const float sinTheta,
-                                  const float theta,
                                   const float kp_x,
                                   const float kp_y,
-                                  const unsigned int scale,
-                                  const unsigned int rot,
+                                  const cv::Vec5f* pParam,
                                   const unsigned int point );
 
     template< typename srcMatType, typename iiMatType >

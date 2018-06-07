@@ -123,7 +123,7 @@ detectFREAK( Mat& img1, Mat& img2, vector< KeyPoint >& kp1, vector< KeyPoint >& 
 
     std::cout << "/////////////////////////////////////// \n";
     std::cout << "/////////////////////////////////////// \n";
-    bool calc_table = 1;
+    bool calc_table = 0;
     if ( calc_table )
     {
         freak2->buildPatternTable( );
@@ -147,7 +147,7 @@ detectFREAK( Mat& img1, Mat& img2, vector< KeyPoint >& kp1, vector< KeyPoint >& 
 
     t = getTickCount( );
 
-    int time = 1;
+    int time = 10;
 
     for ( int i = 0; i < time; ++i )
         freak->compute( img1, kp1, des1 );

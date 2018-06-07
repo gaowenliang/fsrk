@@ -842,19 +842,22 @@ cv::SFREAK_Impl::computeDescriptors( InputArray _image, std::vector< KeyPoint >&
                 if ( thetaIdxTmp >= N_ORIENTATION )
                     thetaIdxTmp -= N_ORIENTATION;
 
+                cv::Vec5f* param
+                = m_patternTable.ptr< cv::Vec5f >( index,
+                                                   kpScaleIdx[k] * N_ORIENTATION * N_POINTS //
+                                                   + thetaIdxTmp * N_POINTS );
+
                 // get the points intensity value in the un-rotated pattern
                 for ( int i = N_POINTS; i--; )
                 {
                     pointsValue2[i]
                     = meanIntensityByTable< srcMatType, iiMatType >( image, //
-                                                                     index,
                                                                      theta,
                                                                      cosTheta,
                                                                      sinTheta,
                                                                      keypoints[k].pt.x,
                                                                      keypoints[k].pt.y,
-                                                                     kpScaleIdx[k],
-                                                                     thetaIdxTmp,
+                                                                     param,
                                                                      i );
                 }
 
@@ -895,18 +898,23 @@ cv::SFREAK_Impl::computeDescriptors( InputArray _image, std::vector< KeyPoint >&
             // extract descriptor at the computed orientation
             if ( mask[0] > 20 )
             {
+
+                cv::Vec5f* param
+                = m_patternTable.ptr< cv::Vec5f >( index,
+                                                   kpScaleIdx[k] * N_ORIENTATION * N_POINTS //
+                                                   + thetaIdx * N_POINTS );
+
                 for ( int i = N_POINTS; i--; )
                 {
+
                     pointsValue2[i]
                     = meanIntensityByTable< srcMatType, iiMatType >( image, //
-                                                                     index,
                                                                      theta,
                                                                      cosTheta,
                                                                      sinTheta,
                                                                      keypoints[k].pt.x,
                                                                      keypoints[k].pt.y,
-                                                                     kpScaleIdx[k],
-                                                                     thetaIdx,
+                                                                     param,
                                                                      i );
                 }
             }
@@ -922,136 +930,140 @@ cv::SFREAK_Impl::computeDescriptors( InputArray _image, std::vector< KeyPoint >&
             extractDescriptor< srcMatType >( pointsValue2, &ptr );
         }
     }
-    else // extract all possible comparisons for selection
-    {
-        _descriptors.create( ( int )keypoints.size( ), 128, CV_8U );
-        _descriptors.setTo( Scalar::all( 0 ) );
-        Mat descriptors = _descriptors.getMat( );
-        std::bitset< 1024 >* ptr
-        = ( std::bitset< 1024 >* )( descriptors.data
-                                    + ( keypoints.size( ) - 1 ) * descriptors.step[0] );
+    /*  else // extract all possible comparisons for selection
+      {
+          _descriptors.create( ( int )keypoints.size( ), 128, CV_8U );
+          _descriptors.setTo( Scalar::all( 0 ) );
+          Mat descriptors = _descriptors.getMat( );
+          std::bitset< 1024 >* ptr
+          = ( std::bitset< 1024 >* )( descriptors.data
+                                      + ( keypoints.size( ) - 1 ) * descriptors.step[0] );
 
-        for ( size_t k = keypoints.size( ); k--; )
-        {
-            // color_rand1 = rand( ) % 256;
-            // color_rand2 = rand( ) % 256;
-            // color_rand3 = rand( ) % 256;
+          for ( size_t k = keypoints.size( ); k--; )
+          {
+              // color_rand1 = rand( ) % 256;
+              // color_rand2 = rand( ) % 256;
+              // color_rand3 = rand( ) % 256;
 
-            // NOTE
-            float dist     = disOfPoints( image_center, keypoints[k].pt );
-            float sinTheta = sinAngOfPoints( image_center, keypoints[k].pt, dist );
-            float cosTheta = cosAngOfPoints( image_center, keypoints[k].pt, dist );
-            float theta = angOfPoints( image_center, keypoints[k].pt ) * ( 180.0 / CV_PI );
-            int index   = int( dist );
+              // NOTE
+              float dist     = disOfPoints( image_center, keypoints[k].pt );
+              float sinTheta = sinAngOfPoints( image_center, keypoints[k].pt, dist );
+              float cosTheta = cosAngOfPoints( image_center, keypoints[k].pt, dist );
+              float theta = angOfPoints( image_center, keypoints[k].pt ) * ( 180.0 / CV_PI
+      );
+              int index   = int( dist );
 
-            // estimate orientation (gradient)
-            if ( !orientationNormalized )
-            {
-                thetaIdx           = 0; // assign 0° to all keypoints
-                keypoints[k].angle = 0.0;
-            }
-            else
-            {
-                int thetaIdxTmp;
-                if ( theta < 0.f )
-                    thetaIdxTmp = int( N_ORIENTATION * ( -theta ) * ( 1 / 360.0 ) - 0.5 );
-                else
-                    thetaIdxTmp = int( N_ORIENTATION * ( -theta ) * ( 1 / 360.0 ) + 0.5 );
+              // estimate orientation (gradient)
+              if ( !orientationNormalized )
+              {
+                  thetaIdx           = 0; // assign 0° to all keypoints
+                  keypoints[k].angle = 0.0;
+              }
+              else
+              {
+                  int thetaIdxTmp;
+                  if ( theta < 0.f )
+                      thetaIdxTmp = int( N_ORIENTATION * ( -theta ) * ( 1 / 360.0 ) - 0.5 );
+                  else
+                      thetaIdxTmp = int( N_ORIENTATION * ( -theta ) * ( 1 / 360.0 ) + 0.5 );
 
-                if ( thetaIdxTmp < 0 )
-                    thetaIdxTmp += N_ORIENTATION;
-                if ( thetaIdxTmp >= N_ORIENTATION )
-                    thetaIdxTmp -= N_ORIENTATION;
+                  if ( thetaIdxTmp < 0 )
+                      thetaIdxTmp += N_ORIENTATION;
+                  if ( thetaIdxTmp >= N_ORIENTATION )
+                      thetaIdxTmp -= N_ORIENTATION;
 
-                // get the points intensity value in the un-rotated pattern
-                for ( int i = N_POINTS; i--; )
-                {
-                    pointsValue2[i]
-                    = meanIntensityByTable< srcMatType, iiMatType >( image, //
-                                                                     index,
-                                                                     theta,
-                                                                     cosTheta,
-                                                                     sinTheta,
-                                                                     keypoints[k].pt.x,
-                                                                     keypoints[k].pt.y,
-                                                                     kpScaleIdx[k],
-                                                                     thetaIdxTmp,
-                                                                     i );
-                }
+                  // get the points intensity value in the un-rotated pattern
+                  for ( int i = N_POINTS; i--; )
+                  {
+                      pointsValue2[i]
+                      = meanIntensityByTable< srcMatType, iiMatType >( image, //
+                                                                       index,
+                                                                       theta,
+                                                                       cosTheta,
+                                                                       sinTheta,
+                                                                       keypoints[k].pt.x,
+                                                                       keypoints[k].pt.y,
+                                                                       kpScaleIdx[k],
+                                                                       thetaIdxTmp,
+                                                                       i );
+                  }
 
-                direction0 = 0;
-                direction1 = 0;
-                for ( int m = 45; m--; )
-                {
-                    // iterate through the orientation pairs
-                    const int delta = ( pointsValue2[orientationPairs[m].i]
-                                        - pointsValue2[orientationPairs[m].j] );
-                    direction0 += delta * ( orientationPairs[m].weight_dx ) / 2048;
-                    direction1 += delta * ( orientationPairs[m].weight_dy ) / 2048;
-                }
+                  direction0 = 0;
+                  direction1 = 0;
+                  for ( int m = 45; m--; )
+                  {
+                      // iterate through the orientation pairs
+                      const int delta = ( pointsValue2[orientationPairs[m].i]
+                                          - pointsValue2[orientationPairs[m].j] );
+                      direction0 += delta * ( orientationPairs[m].weight_dx ) / 2048;
+                      direction1 += delta * ( orientationPairs[m].weight_dy ) / 2048;
+                  }
 
-                // estimate orientation
-                keypoints[k].angle = static_cast< float >( atan2( ( float )direction1, //
-                                                                  ( float )direction0 )
-                                                           * ( 180.0 / CV_PI ) );
+                  // estimate orientation
+                  keypoints[k].angle = static_cast< float >( atan2( ( float )direction1, //
+                                                                    ( float )direction0 )
+                                                             * ( 180.0 / CV_PI ) );
 
-                if ( keypoints[k].angle < 0.f )
-                    thetaIdx
-                    = int( N_ORIENTATION * ( -theta + keypoints[k].angle ) * ( 1 / 360.0 ) - 0.5 );
-                else
-                    thetaIdx
-                    = int( N_ORIENTATION * ( -theta + keypoints[k].angle ) * ( 1 / 360.0 ) + 0.5 );
+                  if ( keypoints[k].angle < 0.f )
+                      thetaIdx
+                      = int( N_ORIENTATION * ( -theta + keypoints[k].angle ) * ( 1 / 360.0 )
+      - 0.5 );
+                  else
+                      thetaIdx
+                      = int( N_ORIENTATION * ( -theta + keypoints[k].angle ) * ( 1 / 360.0 )
+      + 0.5 );
 
-                if ( thetaIdx < 0 )
-                    thetaIdx += N_ORIENTATION;
+                  if ( thetaIdx < 0 )
+                      thetaIdx += N_ORIENTATION;
 
-                if ( thetaIdx >= N_ORIENTATION )
-                    thetaIdx -= N_ORIENTATION;
-            }
+                  if ( thetaIdx >= N_ORIENTATION )
+                      thetaIdx -= N_ORIENTATION;
+              }
 
-            const unsigned char* const mask = m_mask.ptr( )
-                                              + int( keypoints[k].pt.y ) * cam->imageWidth( )
-                                              + int( keypoints[k].pt.x );
+              const unsigned char* const mask = m_mask.ptr( )
+                                                + int( keypoints[k].pt.y ) *
+      cam->imageWidth( )
+                                                + int( keypoints[k].pt.x );
 
-            // get the points intensity value in the rotated pattern
-            if ( mask[0] > 20 )
-            {
-                for ( int i = N_POINTS; i--; )
-                {
-                    pointsValue2[i]
-                    = meanIntensityByTable< srcMatType, iiMatType >( image, //
-                                                                     index,
-                                                                     theta,
-                                                                     cosTheta,
-                                                                     sinTheta,
-                                                                     keypoints[k].pt.x,
-                                                                     keypoints[k].pt.y,
-                                                                     kpScaleIdx[k],
-                                                                     thetaIdx,
-                                                                     i );
-                }
-            }
-            else
-            {
-                for ( int i = N_POINTS; i--; )
-                {
-                    pointsValue2[i] = 0;
-                }
-            }
+              // get the points intensity value in the rotated pattern
+              if ( mask[0] > 20 )
+              {
+                  for ( int i = N_POINTS; i--; )
+                  {
+                      pointsValue2[i]
+                      = meanIntensityByTable< srcMatType, iiMatType >( image, //
+                                                                       index,
+                                                                       theta,
+                                                                       cosTheta,
+                                                                       sinTheta,
+                                                                       keypoints[k].pt.x,
+                                                                       keypoints[k].pt.y,
+                                                                       kpScaleIdx[k],
+                                                                       thetaIdx,
+                                                                       i );
+                  }
+              }
+              else
+              {
+                  for ( int i = N_POINTS; i--; )
+                  {
+                      pointsValue2[i] = 0;
+                  }
+              }
 
-            int cnt( 0 );
-            for ( int i = 1; i < N_POINTS; ++i )
-            {
-                //(generate all the pairs)
-                for ( int j = 0; j < i; ++j )
-                {
-                    ptr->set( cnt, pointsValue2[i] >= pointsValue2[j] );
-                    ++cnt;
-                }
-            }
-            --ptr;
-        }
-    }
+              int cnt( 0 );
+              for ( int i = 1; i < N_POINTS; ++i )
+              {
+                  //(generate all the pairs)
+                  for ( int j = 0; j < i; ++j )
+                  {
+                      ptr->set( cnt, pointsValue2[i] >= pointsValue2[j] );
+                      ++cnt;
+                  }
+              }
+              --ptr;
+          }
+      }*/
 
     // cv::namedWindow( "image_color", WINDOW_NORMAL );
     // cv::imshow( "image_color", image_color );
@@ -1189,35 +1201,26 @@ cv::SFREAK_Impl::meanIntensity( InputArray _image,
 
 template< typename imgType, typename iiType >
 imgType
-cv::SFREAK_Impl::meanIntensityByTable( InputArray _image,
-                                       const int index,
+cv::SFREAK_Impl::meanIntensityByTable( cv::Mat image,
                                        const float theta,
                                        const float cosTheta,
                                        const float sinTheta,
                                        const float kp_x,
                                        const float kp_y,
-                                       const unsigned int scale,
-                                       const unsigned int rot,
+                                       const cv::Vec5f* pParam,
                                        const unsigned int point )
 {
-    Mat image = _image.getMat( );
-
     // get point position in image
-    cv::Vec5f param = m_patternTable.at< cv::Vec5f >( index,
-                                                      scale * N_ORIENTATION * N_POINTS //
-                                                      + rot * N_POINTS
-                                                      + point );
-
-    const float cx  = param[0];
-    const float cy  = param[1];
-    const float sw  = param[2];
-    const float sh  = param[3];
-    const float ang = param[4];
+    const float cx  = pParam[point][0];
+    const float cy  = pParam[point][1];
+    const float sw  = pParam[point][2];
+    const float sh  = pParam[point][3];
+    const float ang = pParam[point][4];
     // std::cout << "cx    " << cx << "\n";
     // std::cout << "cy    " << cy << "\n";
     // std::cout << "sw    " << sw << "\n";
     // std::cout << "sh    " << sh << "\n";
-    // std::cout << "ang   " << ang << "\n";
+    // std::cout << "ang   " << ang << "\n\n";
 
     cv::Point2f pt_2 = rotatePoint( cx, cy, cosTheta, sinTheta );
 
