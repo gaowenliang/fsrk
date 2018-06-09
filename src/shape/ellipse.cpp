@@ -447,40 +447,14 @@ ICV_HLINE_X2( uchar* ptr, int xl, int xr, const uchar* color, int pix_size )
 }
 
 static inline void
-sumEll1( uchar* img_ptr, cv::Mat int_img, int* _integ_ptr, int& sum, int& num, int xl, int xr, int cols, int y )
+sumEll1( int* _integ_ptr, int& sum, int& num, int xl, int xr, int cols )
 {
-    uchar* hline_min_ptr = ( uchar* )( img_ptr ) + ( xl );
-    uchar* hline_end_ptr = ( uchar* )( img_ptr ) + ( xr + 1 );
-    uchar* hline_ptr     = hline_min_ptr;
-    // std::cout << " " << xl << " " << xr + 1 << " " << xr + 1 - xl << "\n";
+    sum += _integ_ptr[cols + xr + 1] //
+           - _integ_ptr[xr + 1]      //
+           - _integ_ptr[cols + xl]   //
+           + _integ_ptr[xl];
 
-    // sum = 0;
-    // num = 0;
-    while ( hline_ptr < hline_end_ptr )
-    {
-        sum += hline_ptr[0];
-
-        hline_ptr += 1;
-
-        ++num;
-    } // end while(hline_ptr < hline_end_ptr)
-
-    // std::cout << num << " sum " << sum << "\n";
-
-    int* int_1_ptr = ( int* )( _integ_ptr ) + ( xl );
-    int* int_2_ptr = ( int* )( _integ_ptr ) + ( xr + 1 );
-    int* int_3_ptr = ( int* )( _integ_ptr ) + cols + ( xl );
-    int* int_4_ptr = ( int* )( _integ_ptr ) + cols + ( xr + 1 );
-
-    int sum2 = 0;
-
-    //    sum2 = int_4_ptr[0] - int_3_ptr[0] - int_2_ptr[0] + int_1_ptr[0];
-    sum2 = int_img.at< int >( y + 1, xr + 1 ) - int_img.at< int >( y, xr + 1 )
-           - int_img.at< int >( y + 1, xl ) + int_img.at< int >( y, xl );
-
-    // std::cout << "int_end_ptr " << int_end_ptr[0] << " \n";
-    // std::cout << "int_min_ptr " << int_min_ptr[0] << " \n";
-    //  std::cout << xr + 1 - xl << " sum2 " << sum2 << "\n\n";
+    num += xr + 1 - xl;
 }
 static inline void
 sumEll3( uchar* ptr, int& sum, int& num, int xl, int xr, int pix_size )
@@ -768,8 +742,7 @@ sumConvexPoly3( Mat& img, cv::Mat integral, const Point* v, int npts, int& sum_v
     int i, y, imin = 0;
     int edges = npts;
     int xmin, xmax, ymin, ymax;
-    uchar* img_ptr = img.ptr( );
-    int* integ_ptr = integral.ptr< int >( 500 );
+    int* integ_ptr = integral.ptr< int >( );
     Size size      = img.size( );
 
     xmin = xmax = v[0].x;
@@ -803,7 +776,6 @@ sumConvexPoly3( Mat& img, cv::Mat integral, const Point* v, int npts, int& sum_v
     edge[0].x = edge[1].x = -XY_ONE;
     edge[0].dx = edge[1].dx = 0;
 
-    img_ptr += img.step * y;
     integ_ptr += integral.cols * y;
 
     do
@@ -864,7 +836,7 @@ sumConvexPoly3( Mat& img, cv::Mat integral, const Point* v, int npts, int& sum_v
                 if ( xx2 >= size.width )
                     xx2 = size.width - 1;
 
-                sumEll1( img_ptr, integral, integ_ptr, sum_v, num_v, xx1, xx2, integral.cols, y );
+                sumEll1( integ_ptr, sum_v, num_v, xx1, xx2, integral.cols );
             }
         }
         else
@@ -875,7 +847,6 @@ sumConvexPoly3( Mat& img, cv::Mat integral, const Point* v, int npts, int& sum_v
         edge[0].x += edge[0].dx;
         edge[1].x += edge[1].dx;
 
-        img_ptr += img.step;
         integ_ptr += integral.cols;
 
     } while ( ++y <= ( int )ymax );
