@@ -114,7 +114,7 @@ class SFREAK_Impl : public SFREAK
 
     template< typename imgType, typename iiType >
     imgType meanIntensityByTable( cv::Mat image,
-                                  cv::Mat integral,
+                                  cv::Mat integral2,
                                   const float theta,
                                   const float cosTheta,
                                   const float sinTheta,

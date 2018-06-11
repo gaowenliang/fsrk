@@ -280,8 +280,7 @@ cv::SFREAK_Impl::buildPattern( )
 
                         m_patternTable.at< cv::Vec5f >( index,
                                                         scaleIdx * N_ORIENTATION * N_POINTS //
-                                                        + orientationIdx * N_POINTS
-                                                        + pointIdx )
+                                                        + orientationIdx * N_POINTS + pointIdx )
                         = cv::Vec5f( ellip->box.center.x,
                                      ellip->box.center.y,
                                      ellip->box.size.width,
@@ -727,14 +726,42 @@ cv::SFREAK_Impl::extractDescriptor( srcMatType* pointsValue, void** ptr )
     --( *ptrScalar );
 }
 
+void
+sumPixelRow( const cv::Mat& img, cv::Mat& integral )
+{
+    if ( img.type( ) == CV_8UC1 )
+        integral = cv::Mat( img.rows, img.cols, CV_32SC1 );
+
+    int nr = img.rows, nc = img.cols;
+    int index_col, index_row;
+
+    const uchar* pImg = img.ptr< uchar >( 0 );
+    int* pIntegral    = integral.ptr< int >( 0 );
+
+    for ( index_row = 0; index_row < nr; ++index_row )
+    {
+        pImg      = img.ptr< uchar >( index_row );
+        pIntegral = integral.ptr< int >( index_row );
+
+        pIntegral[0] = pImg[0];
+
+        for ( index_col = 1; index_col < nc; ++index_col )
+        {
+            pIntegral[index_col] = pIntegral[index_col - 1] + pImg[index_col];
+        }
+    }
+}
+
 template< typename srcMatType, typename iiMatType >
 void
 cv::SFREAK_Impl::computeDescriptors( InputArray _image, std::vector< KeyPoint >& keypoints, OutputArray _descriptors )
 {
     Mat image = _image.getMat( );
 
-    Mat imgIntegral;
-    integral( image, imgIntegral, DataType< iiMatType >::type );
+    // Mat imgIntegral;
+    Mat imgIntegral2;
+    sumPixelRow( image, imgIntegral2 );
+    // integral( image, imgIntegral, DataType< iiMatType >::type );
 
     // used to save pattern scale index corresponding to each keypoints
     std::vector< int > kpScaleIdx( keypoints.size( ) );
@@ -862,7 +889,7 @@ cv::SFREAK_Impl::computeDescriptors( InputArray _image, std::vector< KeyPoint >&
                 {
                     pointsValue2[i]
                     = meanIntensityByTable< srcMatType, iiMatType >( image, //
-                                                                     imgIntegral,
+                                                                     imgIntegral2,
                                                                      theta,
                                                                      cosTheta,
                                                                      sinTheta,
@@ -920,7 +947,7 @@ cv::SFREAK_Impl::computeDescriptors( InputArray _image, std::vector< KeyPoint >&
 
                     pointsValue2[i]
                     = meanIntensityByTable< srcMatType, iiMatType >( image, //
-                                                                     imgIntegral,
+                                                                     imgIntegral2,
                                                                      theta,
                                                                      cosTheta,
                                                                      sinTheta,
@@ -1112,8 +1139,7 @@ cv::SFREAK_Impl::meanIntensity( InputArray _image,
 
     cv::Vec5f param = m_patternTable.at< cv::Vec5f >( 0,
                                                       scale * N_ORIENTATION * N_POINTS //
-                                                      + rot * N_POINTS
-                                                      + point );
+                                                      + rot * N_POINTS + point );
 
     const float cx  = param[0];
     const float cy  = param[1];
@@ -1226,7 +1252,7 @@ cv::SFREAK_Impl::meanIntensity( InputArray _image,
 template< typename imgType, typename iiType >
 imgType
 cv::SFREAK_Impl::meanIntensityByTable( cv::Mat image,
-                                       cv::Mat integral,
+                                       Mat integral2,
                                        const float theta,
                                        const float cosTheta,
                                        const float sinTheta,
@@ -1297,7 +1323,7 @@ cv::SFREAK_Impl::meanIntensityByTable( cv::Mat image,
         int _num = 0;
 
         Ellipse ell( cv::Point2f( xf, yf ), cv::Size2f( sw, sh ), ang + theta );
-        ell.sumPoly( image, integral, _sum, _num );
+        ell.sumPoly( integral2, _sum, _num );
 
         iiType ret_val;
         ret_val = iiType( _sum / _num );

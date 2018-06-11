@@ -145,19 +145,18 @@ detectFREAK( Mat& img1, Mat& img2, vector< KeyPoint >& kp1, vector< KeyPoint >& 
     }
     std::cout << "[#INFO] Pattern loading done. \n";
 
-    t = getTickCount( );
-
     int time = 10;
+
+    sys_utils::tic::TicTocPart cost_time;
 
     for ( int i = 0; i < time; ++i )
         freak->compute( img1, kp1, des1 );
 
-    t = ( ( double )getTickCount( ) - t ) / getTickFrequency( );
-    std::cout << std::endl
-              << kp1.size( ) << " cost " << t * 1000 / time << " ms" << std::endl;
-    std::cout << " pt avg " << t * 1000 / kp1.size( ) / time << " ms" << std::endl;
+    double time_1 = cost_time.toc( );
+    std::cout << std::endl << kp1.size( ) << " cost " << time_1 << " ms" << std::endl;
+    std::cout << " pt avg " << time_1 / kp1.size( ) / time << " ms" << std::endl;
 
-    t = getTickCount( );
+    double t = getTickCount( );
 
     for ( int i = 0; i < time; ++i )
         freak2->compute( img2, kp2, des2 );
