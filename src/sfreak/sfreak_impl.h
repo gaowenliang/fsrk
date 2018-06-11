@@ -113,15 +113,14 @@ class SFREAK_Impl : public SFREAK
                            const unsigned int point );
 
     template< typename imgType, typename iiType >
-    imgType meanIntensityByTable( InputArray image,
-                                  const int index,
+    imgType meanIntensityByTable( cv::Mat image,
+                                  cv::Mat integral2,
+                                  const float theta,
                                   const float cosTheta,
                                   const float sinTheta,
-                                  const float theta,
                                   const float kp_x,
                                   const float kp_y,
-                                  const unsigned int scale,
-                                  const unsigned int rot,
+                                  const cv::Vec5f* pParam,
                                   const unsigned int point );
 
     template< typename srcMatType, typename iiMatType >
@@ -135,7 +134,7 @@ class SFREAK_Impl : public SFREAK
     float sinAngOfPoints( cv::Point2f pt0, cv::Point2f pt1, float dis );
     float cosAngOfPoints( cv::Point2f pt0, cv::Point2f pt1, float dis );
     float angOfPoints( cv::Point2f pt0, cv::Point2f pt1 );
-    cv::Point2f rotatePoint( const float x, const float y, const float cosA, const float sinA );
+    inline cv::Point2f rotatePoint( const float x, const float y, const float cosA, const float sinA );
 
     bool orientationNormalized; // true if the orientation is normalized, false otherwise
     bool scaleNormalized;       // true if the scale is normalized, false otherwise

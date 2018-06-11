@@ -15,6 +15,8 @@ Mat mask;
 int color_rand1, color_rand2, color_rand3;
 cv::Point2f image_center;
 
+double patternScale = 22; // scaling of the pattern
+
 struct PatternEllipse
 {
     EllipsePtr pPatt;
@@ -220,7 +222,6 @@ drawImageCalc( cv::Mat image_color, cv::Point pt, float angle )
                               radius[5] / 2.0, //
                               radius[6] / 2.0, //
                               radius[6] / 2.0 };
-    double patternScale = 36; // scaling of the pattern
 
     for ( size_t i = 0; i < 8; ++i )
     {
@@ -360,7 +361,6 @@ buildTable( camera_model::CameraPtr cam )
                               radius[6] / 2.0 };
 
     double alpha, beta, theta = 0;
-    double patternScale = 36;
 
     for ( int index = 0; index < pixel_size; ++index )
     {

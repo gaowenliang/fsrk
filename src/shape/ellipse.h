@@ -25,6 +25,8 @@ class Ellipse
     Ellipse( const cv::RectRot& _box );
     Ellipse( const Point2f& center, const Size2f& size, float angle );
 
+    void calcParam( );
+
     float dis2( cv::Point2f pt0, cv::Point2f pt1 );
     bool inside( cv::Point2f pt );
     bool onEllipse( cv::Point2f pt );
@@ -32,6 +34,11 @@ class Ellipse
     void fit( InputArray _points );
 
     void draw( InputOutputArray img, const Scalar& color );
+    void drawPoly( InputOutputArray img, const Scalar& color );
+
+    void sumPoly( Mat integral2, int& sum, int& num );
+
+    void toPoly( int angle, std::vector< Point >& pts );
 
     float getAxisLong( ) const { return 2 * axisHalfLong; }
     float getAxisShort( ) const { return 2 * axisHalfShort; }
@@ -44,6 +51,16 @@ class Ellipse
 
     cv::RectRot getBox( ) const;
     cv::RotatedRect getBox2( ) const;
+
+    private:
+    void FillConvexPoly3( Mat& img, const Point* v, int npts, const void* color );
+    void sumConvexPoly3( Mat integral2, const Point* v, int npts, int& sum_v, int& num_v );
+    inline void sumEll1( int* _integ_ptr2, int& sum, int& num, int xl, int xr )
+    {
+        // for row integral image
+        sum += _integ_ptr2[xr] - _integ_ptr2[xl - 1];
+        num += xr + 1 - xl;
+    }
 
     public:
     float axisHalfLong;    // a

@@ -41,6 +41,7 @@ the use of this software, even if advised of the possibility of such damage.
 
 #include "opencv2/features2d.hpp"
 #include <camera_model/camera_models/CameraFactory.h>
+#include <code_utils/cv_utils/cv_type.hpp>
 #include <opencv2/opencv.hpp>
 
 namespace cv

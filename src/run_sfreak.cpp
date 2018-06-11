@@ -113,17 +113,18 @@ detectFREAK( Mat& img1, Mat& img2, vector< KeyPoint >& kp1, vector< KeyPoint >& 
     // std::cout << " size2 " << kp2.size( ) << std::endl;
     //////////////////////////////////////////////////////
 
-    Ptr< SFREAK > freak = cv::SFREAK::create( true, true, 36, 4 );
+    Ptr< SFREAK > freak = cv::SFREAK::create( true, true, 30, 4 ); // 36
     freak->loadCamera( file_cam );
     freak->loadMask( file_mask );
 
-    Ptr< SFREAK > freak2 = cv::SFREAK::create( true, true, 36, 4 );
+    Ptr< SFREAK > freak2 = cv::SFREAK::create( true, true, 30, 4 ); // 36
     freak2->loadCamera( file_cam2 );
     freak2->loadMask( );
 
     std::cout << "/////////////////////////////////////// \n";
     std::cout << "/////////////////////////////////////// \n";
-    if ( 0 )
+    bool calc_table = 0;
+    if ( calc_table )
     {
         freak2->buildPatternTable( );
         freak2->savePatternTableToData( "/home/gao/ws/src/fsrk/cfg/fsrk_f" );
@@ -133,7 +134,7 @@ detectFREAK( Mat& img1, Mat& img2, vector< KeyPoint >& kp1, vector< KeyPoint >& 
         freak2->loadPatternTableFromData( "/home/gao/ws/src/fsrk/cfg/fsrk_f" );
     }
 
-    if ( 0 )
+    if ( calc_table )
     {
         freak->buildPatternTable( );
         freak->savePatternTableToData( "/home/gao/ws/src/fsrk/cfg/fsrk_down" );
@@ -142,20 +143,20 @@ detectFREAK( Mat& img1, Mat& img2, vector< KeyPoint >& kp1, vector< KeyPoint >& 
     {
         freak->loadPatternTableFromData( "/home/gao/ws/src/fsrk/cfg/fsrk_down" );
     }
-
-    t = getTickCount( );
+    std::cout << "[#INFO] Pattern loading done. \n";
 
     int time = 10;
+
+    sys_utils::tic::TicTocPart cost_time;
 
     for ( int i = 0; i < time; ++i )
         freak->compute( img1, kp1, des1 );
 
-    t = ( ( double )getTickCount( ) - t ) / getTickFrequency( );
-    std::cout << std::endl
-              << kp1.size( ) << " cost " << t * 1000 / time << " ms" << std::endl;
-    std::cout << " pt avg " << t * 1000 / kp1.size( ) / time << " ms" << std::endl;
+    double time_1 = cost_time.toc( );
+    std::cout << std::endl << kp1.size( ) << " cost " << time_1 << " ms" << std::endl;
+    std::cout << " pt avg " << time_1 / kp1.size( ) / time << " ms" << std::endl;
 
-    t = getTickCount( );
+    double t = getTickCount( );
 
     for ( int i = 0; i < time; ++i )
         freak2->compute( img2, kp2, des2 );

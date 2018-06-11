@@ -371,3 +371,127 @@ cv::CircleInt::onCircle( cv::Point pt )
 
     return ( dis2 - radius ) * ( dis2 - radius ) < 1 ? false : true;
 }
+
+cv::Circlef::Circlef( cv::Point2f _center, float _r )
+: center( _center )
+, radius( _r )
+{
+}
+
+bool
+cv::Circlef::inside( cv::Point2f pt )
+{
+    float dx = pt.x - center.x;
+    float dy = pt.y - center.y;
+
+    float dis2 = dx * dx + dy * dy;
+
+    return dis2 >= radius * radius ? false : true;
+}
+
+bool
+cv::Circlef::onCircle( cv::Point2f pt )
+{
+    float dx = pt.x - center.x;
+    float dy = pt.y - center.y;
+
+    float dis2 = dx * dx + dy * dy;
+
+    return ( dis2 - radius ) * ( dis2 - radius ) < 0.001 ? false : true;
+}
+
+std::vector< cv::Point2f >
+cv::Circlef::getCirclePoints( cv::Size size )
+{
+
+    float err = 0, dx = radius, dy = 0, plus = 1;
+    int inside = center.x >= radius && center.x < size.width - radius && center.y >= radius
+                 && center.y < size.height - radius;
+
+    std::vector< cv::Point2f > pts;
+
+    while ( dx >= dy )
+    {
+        int mask;
+        float y11 = center.y - dy, y12 = center.y + dy, y21 = center.y - dx, y22 = center.y + dx;
+        float x11 = center.x - dx, x12 = center.x + dx, x21 = center.x - dy, x22 = center.x + dy;
+
+        if ( inside )
+        {
+
+            pts.push_back( cv::Point2f( x11, y11 ) );
+            pts.push_back( cv::Point2f( x11, y12 ) );
+            pts.push_back( cv::Point2f( x12, y11 ) );
+            pts.push_back( cv::Point2f( x12, y12 ) );
+
+            pts.push_back( cv::Point2f( x21, y21 ) );
+            pts.push_back( cv::Point2f( x21, y22 ) );
+            pts.push_back( cv::Point2f( x22, y21 ) );
+            pts.push_back( cv::Point2f( x22, y22 ) );
+        }
+        else if ( x11 < size.width && x12 >= 0 && y21 < size.height && y22 >= 0 )
+        {
+
+            if ( ( unsigned )y11 < ( unsigned )size.height )
+            {
+                if ( x11 >= 0 )
+                {
+                    pts.push_back( cv::Point2f( x11, y11 ) );
+                }
+                if ( x12 < size.width )
+                {
+                    pts.push_back( cv::Point2f( x12, y11 ) );
+                }
+            }
+
+            if ( ( unsigned )y12 < ( unsigned )size.height )
+            {
+                if ( x11 >= 0 )
+                {
+                    pts.push_back( cv::Point2f( x11, y12 ) );
+                }
+                if ( x12 < size.width )
+                {
+                    pts.push_back( cv::Point2f( x12, y12 ) );
+                }
+            }
+
+            if ( x21 < size.width && x22 >= 0 )
+            {
+                if ( ( unsigned )y21 < ( unsigned )size.height )
+                {
+                    if ( x21 >= 0 )
+                    {
+                        pts.push_back( cv::Point2f( x21, y21 ) );
+                    }
+                    if ( x22 < size.width )
+                    {
+                        pts.push_back( cv::Point2f( x22, y21 ) );
+                    }
+                }
+
+                if ( ( unsigned )y22 < ( unsigned )size.height )
+                {
+                    if ( x21 >= 0 )
+                    {
+                        pts.push_back( cv::Point2f( x21, y22 ) );
+                    }
+                    if ( x22 < size.width )
+                    {
+                        pts.push_back( cv::Point2f( x22, y22 ) );
+                    }
+                }
+            }
+        }
+        dy++;
+        err += plus;
+        plus += 2;
+
+        mask = ( err <= 0 ) - 1;
+
+        err -= mask;
+        dx += mask;
+    }
+
+    return pts;
+}

@@ -10,31 +10,13 @@ namespace cv
 
 class Circlef
 {
+    public:
     Circlef( ) {}
-    Circlef( cv::Point2f _center, float _r )
-    : center( _center )
-    , radius( _r )
-    {
-    }
+    Circlef( cv::Point2f _center, float _r );
 
-    bool inside( cv::Point2f pt )
-    {
-        float dx = pt.x - center.x;
-        float dy = pt.y - center.y;
-
-        float dis2 = dx * dx + dy * dy;
-
-        return dis2 >= radius * radius ? false : true;
-    }
-    bool onCircle( cv::Point2f pt )
-    {
-        float dx = pt.x - center.x;
-        float dy = pt.y - center.y;
-
-        float dis2 = dx * dx + dy * dy;
-
-        return ( dis2 - radius ) * ( dis2 - radius ) < 0.001 ? false : true;
-    }
+    bool inside( cv::Point2f pt );
+    bool onCircle( cv::Point2f pt );
+    std::vector< cv::Point2f > getCirclePoints( cv::Size size );
 
     public:
     cv::Point2f center;
