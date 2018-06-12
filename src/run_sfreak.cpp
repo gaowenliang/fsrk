@@ -5,9 +5,9 @@ namespace backward
 backward::SignalHandling sh;
 }
 
-#include "fsf/sagast/sagast.h"
-#include "sfreak/sfreak.hpp"
-#include "shape/circle.h"
+#include "fsrk/sagast/sagast.h"
+#include "fsrk/sfreak/sfreak.hpp"
+#include "fsrk/shape/circle.h"
 #include <code_utils/sys_utils/tic_toc.h>
 #include <iostream>
 #include <opencv2/core.hpp>
@@ -33,9 +33,9 @@ detectFREAK( Mat& img1, Mat& img2, vector< KeyPoint >& kp1, vector< KeyPoint >& 
 {
 
     // detector
-    std::string file_cam  = "/home/gao/ws/src/vins/config/dual/cam_down_camera_calib.yaml";
+    std::string file_cam  = "/home/gao/ws/src/fsrk/images/cam_down_camera_calib.yaml";
     std::string file_cam2 = "/home/gao/ws/src/fsrk/images/cam_config_F.yaml";
-    std::string file_mask = "/home/gao/ws/src/vins/config/dual/mask_down.jpg";
+    std::string file_mask = "/home/gao/ws/src/fsrk/images/mask_down.jpg";
     cv::Ptr< cv::AgastDetector > agast12
     = cv::AgastDetector::create( 40, true, cv::AgastDetector::SAGAST_12d );
     agast12->loadCamera( file_cam );
@@ -43,11 +43,11 @@ detectFREAK( Mat& img1, Mat& img2, vector< KeyPoint >& kp1, vector< KeyPoint >& 
     if ( 0 )
     {
         agast12->buildOffsetsTable( );
-        agast12->saveOffsetsCfg( "/home/gao/data_SAGAST12d_down" );
+        agast12->saveOffsetsCfg( "/home/gao/ws/src/fsrk/cfg/data_SAGAST12d_down" );
     }
     else
     {
-        agast12->loadOffsetsCfg( "/home/gao/data_SAGAST12d_down" );
+        agast12->loadOffsetsCfg( "/home/gao/ws/src/fsrk/cfg/data_SAGAST12d_down" );
     }
     agast12->detect( img1, kp1 );
     std::cout << "size1: " << kp1.size( ) << std::endl;
@@ -80,11 +80,11 @@ detectFREAK( Mat& img1, Mat& img2, vector< KeyPoint >& kp1, vector< KeyPoint >& 
     if ( 0 )
     {
         agast122->buildOffsetsTable( );
-        agast122->saveOffsetsCfg( "/home/gao/data_SAGAST12d_f" );
+        agast122->saveOffsetsCfg( "/home/gao/ws/src/fsrk/cfg/data_SAGAST12d_f" );
     }
     else
     {
-        agast122->loadOffsetsCfg( "/home/gao/data_SAGAST12d_f" );
+        agast122->loadOffsetsCfg( "/home/gao/ws/src/fsrk/cfg/data_SAGAST12d_f" );
     }
 
     //    cv::Mat image2;
@@ -333,7 +333,7 @@ matchFREAK( Mat& img1, Mat& img2, vector< KeyPoint >& kp1, vector< KeyPoint >& k
 int
 main( )
 {
-    Mat img1 = imread( "/home/gao/ws/devel/lib/camera_model/image_down/IMG_35.png", 0 );
+    Mat img1 = imread( "/home/gao/ws/src/fsrk/images/IMG_35.png", 0 );
     Mat img2 = imread( "/home/gao/ws/src/fsrk/images/image_F.png", 0 );
 
     //    cv::resize( img1, img2, cv::Size( 640, 512 ) );

@@ -5,7 +5,7 @@ namespace backward
 backward::SignalHandling sh;
 }
 
-#include "../include/fsf/sagast/sagast.h"
+#include "../include/fsrk/sagast/sagast.h"
 #include <cv.h>
 #include <iostream>
 #include <opencv2/features2d/features2d.hpp>
@@ -40,11 +40,10 @@ insertionSort( std::vector< cv::KeyPoint >& arr )
 int
 main( )
 {
-    std::string file_vig
-    = "/home/gao/ws/src/vins/config/dual/down_vignetting_model_calib.yaml";
-    std::string file_cam  = "/home/gao/ws/src/vins/config/dual/cam_down_camera_calib.yaml";
-    std::string file_img  = "/home/gao/ws/devel/lib/camera_model/image_down/IMG_280.png";
-    std::string file_mask = "/home/gao/ws/src/vins/config/dual/mask_down.jpg";
+    std::string file_vig  = "/home/gao/ws/src/fsrk/images/down_vignetting_model_calib.yaml";
+    std::string file_cam  = "/home/gao/ws/src/fsrk/images/cam_down_camera_calib.yaml";
+    std::string file_img  = "/home/gao/ws/src/fsrk/images/IMG_280.png";
+    std::string file_mask = "/home/gao/ws/src/fsrk/images/mask_down.jpg";
 
     camera_model::VignettingTable* vignetting;
     vignetting = new camera_model::VignettingTable( file_vig, file_mask );
@@ -122,11 +121,11 @@ main( )
         if ( 1 )
         {
             agast12->buildOffsetsTable( );
-            agast12->saveOffsetsCfg( "/home/gao/ws/src/fsf/cfg/dataSAGAST12d" );
+            agast12->saveOffsetsCfg( "/home/gao/ws/src/fsrk/cfg/dataSAGAST12d" );
         }
         else
         {
-            agast12->loadOffsetsCfg( "/home/gao/ws/src/fsf/cfg/dataSAGAST12d" );
+            agast12->loadOffsetsCfg( "/home/gao/ws/src/fsrk/cfg/dataSAGAST12d" );
         }
         t = ( ( double )getTickCount( ) - t ) / getTickFrequency( );
         sum_t += resize_num * t * 1000;
@@ -179,11 +178,11 @@ main( )
         if ( 1 )
         {
             agast8->buildOffsetsTable( );
-            agast8->saveOffsetsCfg( "/home/gao/ws/src/fsf/cfg/dataSAGAST8" );
+            agast8->saveOffsetsCfg( "/home/gao/ws/src/fsrk/cfg/dataSAGAST8" );
         }
         else
         {
-            agast8->loadOffsetsCfg( "/home/gao/ws/src/fsf/cfg/dataSAGAST8" );
+            agast8->loadOffsetsCfg( "/home/gao/ws/src/fsrk/cfg/dataSAGAST8" );
         }
         t = ( ( double )getTickCount( ) - t ) / getTickFrequency( );
         sum_t += resize_num * t * 1000;
@@ -237,11 +236,11 @@ main( )
             if ( 1 )
             {
                 agast12s->buildOffsetsTable( );
-                agast12s->saveOffsetsCfg( "/home/gao/ws/src/fsf/cfg/dataSAGAST12s" );
+                agast12s->saveOffsetsCfg( "/home/gao/ws/src/fsrk/cfg/dataSAGAST12s" );
             }
             else
             {
-                agast12s->loadOffsetsCfg( "/home/gao/ws/src/fsf/cfg/dataSAGAST12s" );
+                agast12s->loadOffsetsCfg( "/home/gao/ws/src/fsrk/cfg/dataSAGAST12s" );
             }
             t = ( ( double )getTickCount( ) - t ) / getTickFrequency( );
             sum_t += resize_num * t * 1000;
@@ -296,11 +295,11 @@ main( )
             if ( 1 )
             {
                 agast16->buildOffsetsTable( );
-                agast16->saveOffsetsCfg( "/home/gao/ws/src/fsf/cfg/dataSAGAS16" );
+                agast16->saveOffsetsCfg( "/home/gao/ws/src/fsrk/cfg/dataSAGAS16" );
             }
             else
             {
-                agast16->loadOffsetsCfg( "/home/gao/ws/src/fsf/cfg/dataSAGAS16" );
+                agast16->loadOffsetsCfg( "/home/gao/ws/src/fsrk/cfg/dataSAGAS16" );
             }
             t = ( ( double )getTickCount( ) - t ) / getTickFrequency( );
             sum_t += resize_num * t * 1000;

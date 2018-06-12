@@ -31,7 +31,7 @@
 //  the use of this software, even if advised of the possibility of such damage.
 
 //#include "precomp.hpp"
-#include "freak.hpp"
+#include "fsrk/sfreak/freak.hpp"
 #include <algorithm>
 #include <bitset>
 #include <fstream>
@@ -406,7 +406,7 @@ FREAK_Impl::buildPattern( )
     {
         if ( ( int )selectedPairs0.size( ) == FREAK_NB_PAIRS )
         {
-            for ( int i             = 0; i < FREAK_NB_PAIRS; ++i )
+            for ( int i = 0; i < FREAK_NB_PAIRS; ++i )
                 descriptionPairs[i] = allPairs[selectedPairs0.at( i )];
         }
         else
@@ -417,7 +417,7 @@ FREAK_Impl::buildPattern( )
     }
     else // default selected pairs
     {
-        for ( int i             = 0; i < FREAK_NB_PAIRS; ++i )
+        for ( int i = 0; i < FREAK_NB_PAIRS; ++i )
             descriptionPairs[i] = allPairs[FREAK_DEF_PAIRS[i]];
     }
 }
@@ -644,7 +644,7 @@ FREAK_Impl::computeDescriptors( InputArray _image, std::vector< KeyPoint >& keyp
             else
             {
                 // get the points intensity value in the un-rotated pattern
-                for ( int i        = FREAK_NB_POINTS; i--; )
+                for ( int i = FREAK_NB_POINTS; i--; )
                     pointsValue[i] = meanIntensity< srcMatType, iiMatType >(
                     image, imgIntegral, keypoints[k].pt.x, keypoints[k].pt.y, kpScaleIdx[k], 0, i );
 

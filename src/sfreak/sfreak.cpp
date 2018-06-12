@@ -30,8 +30,8 @@
 //  or tort (including negligence or otherwise) arising in any way out of
 //  the use of this software, even if advised of the possibility of such damage.
 
-#include "sfreak.hpp"
-#include "sfreak_impl.h"
+#include "fsrk/sfreak/sfreak.hpp"
+#include "fsrk/sfreak/sfreak_impl.h"
 #include <algorithm>
 #include <code_utils/sys_utils/tic_toc.h>
 #include <fstream>

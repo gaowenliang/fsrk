@@ -1,6 +1,6 @@
-#include "sfreak_impl.h"
-#include "../shape/circle.h"
-#include "../shape/ellipse.h"
+#include "fsrk/sfreak/sfreak_impl.h"
+#include "fsrk/shape/circle.h"
+#include "fsrk/shape/ellipse.h"
 #include <bitset>
 #include <code_utils/cv_utils/cv_type.hpp>
 #include <code_utils/sys_utils/cvmat_file_io.hpp>

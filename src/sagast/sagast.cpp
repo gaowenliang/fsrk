@@ -42,8 +42,8 @@ The references are:
    URL: http://www6.in.tum.de/Main/ResearchAgast
 */
 
-#include "fsf/sagast/sagast.h"
-#include "fsf/sagast/score/sagast_score.hpp"
+#include "fsrk/sagast/sagast.h"
+#include "fsrk/sagast/score/sagast_score.hpp"
 #include <iostream>
 #include <opencv2/core/core.hpp>
 
@@ -245,7 +245,7 @@ AgastDetector::SAGAST2( InputArray _img, std::vector< KeyPoint >& keypoints, int
         nmsFlags.resize( ( int )num_Corners );
 
         // set all flags to MAXIMUM
-        for ( j         = 0; j < num_Corners; j++ )
+        for ( j = 0; j < num_Corners; j++ )
             nmsFlags[j] = -1;
 
         for ( curr_idx = 0; curr_idx < num_Corners; curr_idx++ )
