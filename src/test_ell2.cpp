@@ -5,8 +5,8 @@ namespace backward
 backward::SignalHandling sh;
 }
 
-#include "shape/circle.h"
-#include "shape/ellipse.h"
+#include "fsrk/shape/circle.h"
+#include "fsrk/shape/ellipse.h"
 #include <code_utils/cv_utils/randomcolor.h>
 #include <code_utils/sys_utils/tic_toc.h>
 #include <opencv2/opencv.hpp>

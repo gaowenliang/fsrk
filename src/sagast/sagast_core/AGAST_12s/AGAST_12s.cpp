@@ -1,7 +1,7 @@
 
-#include "fsf/sagast/sagast.h"
-#include "fsf/sagast/sagast_core/AGAST_ALL.h"
-#include "fsf/sagast/score/sagast_score.hpp"
+#include "fsrk/sagast/sagast.h"
+#include "fsrk/sagast/sagast_core/AGAST_ALL.h"
+#include "fsrk/sagast/score/sagast_score.hpp"
 
 using namespace cv;
 

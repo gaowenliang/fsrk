@@ -55,25 +55,27 @@ set(sfreak_LIB_SOURCE_FILES
     ${PROJECT_SOURCE_DIR}/src/shape/circle.cpp
     ${PROJECT_SOURCE_DIR}/src/shape/ellipse.cpp
     ${PROJECT_SOURCE_DIR}/src/shape/rectrot.cpp
-    ${PROJECT_SOURCE_DIR}/src/shape/cv_utils.cpp
 )
 
 add_library(sagast     ${agast_LIB_SOURCE_FILES})
 target_link_libraries(sagast     ${Boost_LIBRARIES}  ${catkin_LIBRARIES}  ${OpenCV_LIBS} )
 
 add_executable(run_sagast    src/run_sagast.cpp    ${agast_LIB_SOURCE_FILES}    )
-target_link_libraries(run_sagast dw ${catkin_LIBRARIES}  ${catkin_LIBRARIES}  ${OpenCV_LIBS})
+target_link_libraries(run_sagast dw ${catkin_LIBRARIES}  ${OpenCV_LIBS})
 
 add_executable(calcCfgSagast    src/calcCfgSagast.cpp    ${agast_LIB_SOURCE_FILES}    )
-target_link_libraries(calcCfgSagast dw ${catkin_LIBRARIES}  ${catkin_LIBRARIES}  ${OpenCV_LIBS})
+target_link_libraries(calcCfgSagast dw ${catkin_LIBRARIES}  ${OpenCV_LIBS})
+
+add_executable(calcCfgSfreak    src/calcCfgSfreak.cpp    ${sfreak_LIB_SOURCE_FILES}    )
+target_link_libraries(calcCfgSfreak dw ${catkin_LIBRARIES}  ${OpenCV_LIBS})
 
 add_executable(run_sfreak    src/run_sfreak.cpp    ${sfreak_LIB_SOURCE_FILES}  ${agast_LIB_SOURCE_FILES})
-target_link_libraries(run_sfreak dw ${catkin_LIBRARIES}  ${catkin_LIBRARIES}  ${OpenCV_LIBS})
+target_link_libraries(run_sfreak dw ${catkin_LIBRARIES}  ${OpenCV_LIBS})
 
 add_executable(test_ell    src/test_ell.cpp    ${sfreak_LIB_SOURCE_FILES}  ${agast_LIB_SOURCE_FILES})
-target_link_libraries(test_ell dw ${catkin_LIBRARIES}  ${catkin_LIBRARIES}  ${OpenCV_LIBS})
+target_link_libraries(test_ell dw ${catkin_LIBRARIES}  ${OpenCV_LIBS})
 
 add_executable(test_ell2    src/test_ell2.cpp    ${sfreak_LIB_SOURCE_FILES}  ${agast_LIB_SOURCE_FILES})
-target_link_libraries(test_ell2 dw ${catkin_LIBRARIES}  ${catkin_LIBRARIES}  ${OpenCV_LIBS})
+target_link_libraries(test_ell2 dw ${catkin_LIBRARIES}  ${OpenCV_LIBS})
 
 

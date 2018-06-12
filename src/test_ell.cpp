@@ -1,5 +1,5 @@
-#include "shape/circle.h"
-#include "shape/ellipse.h"
+#include "fsrk/shape/circle.h"
+#include "fsrk/shape/ellipse.h"
 #include <camera_model/camera_models/CameraFactory.h>
 #include <opencv2/opencv.hpp>
 
